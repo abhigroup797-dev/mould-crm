@@ -142,6 +142,8 @@ textarea{resize:vertical;min-height:84px}
 .seglabel{font:500 12px/1.2 var(--cond);color:var(--muted);text-align:center;overflow:hidden;text-overflow:ellipsis}
 .seg.cur .seglabel{color:var(--ink);font-weight:600}
 .stagenow{display:none;font-weight:600;margin:0 0 6px}
+.rail[hidden]~#adminBox{margin-top:16px}
+.rail[hidden]~#adminBox[hidden]+main{margin-top:16px}
 audio{display:block;width:100%;max-width:340px;height:36px;margin:6px 0 2px}
 .recrow{margin-top:10px;display:flex;flex-wrap:wrap;gap:10px;align-items:center}
 .recrow span{display:flex;flex-wrap:wrap;gap:8px;align-items:center;flex:1 1 220px}
@@ -442,7 +444,7 @@ const BASE_OPS=["Material purchase","Shaping","Grinding","EDM design","EDM","Wir
 let OPS=BASE_OPS.slice();
 const OP_SAY={none:"not needed. Tap to mark it to do",pending:"to do. Tap to mark it done",done:"done. Tap to remove it"};
 const OP_NEXT={none:"pending",pending:"done",done:"none"};
-function buildViews(){return [{key:"admin",hash:"admin",label:"Dashboard, all moulds"},{key:"designer",hash:"designer",label:"Designer panel"}]
+function buildViews(){return [{key:"admin",hash:"admin",label:"Admin panel, all moulds"},{key:"designer",hash:"designer",label:"Designer panel"}]
   .concat(["VMC"].concat(OPS.filter(o=>o!=="VMC")).map(o=>({key:"op:"+o,hash:o.toLowerCase().replace(/\s+/g,"-"),label:o==="VMC"?"VMC operator panel":o+" panel"})));}
 let VIEWS=buildViews();
 const $=id=>document.getElementById(id);
@@ -457,6 +459,7 @@ const audioEls={};
 let cfg={shop:"",extra:[],showDone:true,showPhotos:true,showCust:true,startClosed:false,soon:7},cfgExists=false;
 let formParent=null,view="admin",roles={},people=[],isOwner=false,teamOpen=false,empPick=null,staff=[],claims={},asked=false,codes={},whoPick=null;
 const seen={};
+let wantView="admin",userPicked=false,identLate=false;
 let jobs=[],jobPid=null,parts=[],partPid=null,opPartId=null;
 let projects=[],files=[],gotProjects=false,filter="all",query="",openId=null,editId=null;
 let uploading=false,upMsg="",upErr=false;
@@ -629,8 +632,13 @@ function chip(key,label,n,warn){
     onclick:()=>{filter=key;render();}},label,h("b",{text:String(n)}));
 }
 function render(){
-  $("viewSel").value=view;
-  $("addBtn").hidden=!(db&&canWrite);
+  if(!identReady()){
+    for(const id of ["list","adminBox","rail","addBtn","setBtn","viewSel"])$(id).hidden=true;
+    $("empty").hidden=false;
+    return;
+  }
+  view=effView();fillViews();$("viewSel").hidden=false;
+  $("addBtn").hidden=!(db&&canWrite)||locked();
   $("rail").hidden=view!=="admin";
   $("setBtn").hidden=!(db&&canSet()&&view==="admin");
   renderAdminBox();
@@ -692,7 +700,7 @@ function render(){
 function myRole(){const p=profiles.find(x=>x.id===myId);return(p&&p.role)||"";}
 function isAdmin(){return myRole()==="admin";}
 function locked(){return myRole()!=="admin";}
-function goView(k){applyView(k);try{location.hash=VIEWS.find(v=>v.key===view).hash;}catch(e){}render();}
+function goView(k){userPicked=true;applyView(k);try{location.hash=VIEWS.find(v=>v.key===wantView).hash;}catch(e){}render();}
 async function loadProfiles(){
   const r=await sb.from("profiles").select("id,name,email,role");
   if(r.error)return false;
@@ -746,7 +754,7 @@ function teamBlock(){
   const others=profiles.filter(p=>p.id!==myId).sort((a,b)=>(a.name||a.email).localeCompare(b.name||b.email));
   return h("details",{class:"team",open:teamOpen,ontoggle:e=>{teamOpen=e.target.open;}},
     h("summary",{text:"Employees and panels ("+others.length+")"}),
-    h("p",{class:"hint",text:"Add each employee with an email, a password and a panel. The employee logs in with that email and password and sees the full dashboard and every panel. Only the admin can assign tasks, add employees, change settings and delete."}),
+    h("p",{class:"hint",text:"Add each employee with an email, a password and a panel. The employee logs in with that email and password, starts on that panel and can also open the other process panels. Only the admin can open the admin panel, assign tasks, add employees, change settings and delete."}),
     h("button",{class:"btn",type:"button",style:"margin-bottom:12px",onclick:openEmp},"Add employee"),
     others.length?h("ul",null,others.map(p=>h("li",{class:"srow"},
       h("div",null,h("strong",{text:p.name||"No name"}),h("span",{class:"fmeta"},h("span",{text:p.email}),p.role?"":h("span",{class:"late",text:"No access"}))),
@@ -761,7 +769,7 @@ function renderAdminBox(){
   const cnt={},kids=[];
   for(const pt of parts)for(const k of Object.keys(pt.ops))if(pt.ops[k]==="pending")cnt[k]=(cnt[k]||0)+1;
   const prog=VIEWS.filter(v=>v.key.indexOf("op:")===0).map(v=>({v:v,s:stat(parts,v.key.slice(3))})).filter(x=>x.s.total);
-  if(view==="admin"&&prog.length){
+  if(prog.length){
     const all=stat(parts);
     kids.push(h("div",{class:"prog"},
       h("div",null,h("span",{class:"nm",text:"All work"}),h("span",{class:"ct",text:all.done+" of "+all.total+" done, "+all.pct+"%"}),pbar(all.pct)),
@@ -1040,9 +1048,24 @@ function pline(s,word){return h("div",{class:"pline"},pbar(s.pct),h("b",{text:s.
 const SET_ID="00000000-0000-4000-8000-000000000001";
 function okRole(r){return r==="admin"||r==="designer"||/^op:[^.\/\\]{1,30}$/.test(r);}
 function canSet(){return isAdmin();}
+// Only the admin opens the admin panel. Everyone else starts on their own panel and can open the other process panels.
+function panelOk(k){return !!k&&k!=="admin"&&VIEWS.some(v=>v.key===k);}
+function effView(){
+  if(isAdmin())return VIEWS.some(v=>v.key===wantView)?wantView:"admin";
+  const own=myRole();
+  if(userPicked&&panelOk(wantView))return wantView;
+  if(panelOk(own))return own;
+  return panelOk(wantView)?wantView:"designer";
+}
+function fillViews(){
+  const vs=$("viewSel"),opts=VIEWS.filter(v=>v.key!=="admin"||isAdmin()),sig=opts.map(v=>v.key).join("|");
+  if(vs.dataset.sig!==sig){vs.replaceChildren(...opts.map(v=>h("option",{value:v.key,text:v.label})));vs.dataset.sig=sig;}
+  vs.value=view;
+}
+function identReady(){return true;}
 function fillLists(){
   const vs=$("viewSel"),er=$("e_role"),keep=er.value||"designer";
-  vs.replaceChildren(...VIEWS.map(v=>h("option",{value:v.key,text:v.label})));vs.value=view;
+  vs.dataset.sig="";fillViews();
   er.replaceChildren(...VIEWS.map(v=>h("option",{value:v.key,text:v.key==="admin"?"Admin":v.label})));
   er.value=VIEWS.some(v=>v.key===keep)?keep:"designer";
   $("p_checks").replaceChildren(...OPS.map(k=>h("label",null,h("input",{type:"checkbox",value:k}),k)));
@@ -1058,7 +1081,6 @@ function applySettings(x){
   STAGES=st.length>=2?st:BASE_STAGES.slice();DONE=STAGES.length-1;
   if(!["all","overdue","jobwork"].includes(filter)&&!STAGES.includes(filter))filter="all";
   OPS=BASE_OPS.concat(cfg.extra);VIEWS=buildViews();
-  if(!VIEWS.some(v=>v.key===view)&&!locked())view="admin";
   fillLists();
   $("title").textContent=cfg.shop||"Mould projects";document.title=cfg.shop||"Mould CRM";
 }
@@ -1302,17 +1324,17 @@ $("empCancel").addEventListener("click",()=>$("empDlg").close());
 $("pwForm").addEventListener("submit",savePw);
 $("pwCancel").addEventListener("click",()=>$("pwDlg").close());
 function applyView(k){
-  view=VIEWS.some(v=>v.key===k)?k:"admin";$("viewSel").value=view;
-  try{localStorage.setItem("mouldPanel",view);}catch(e){}
+  wantView=k||"admin";
+  try{localStorage.setItem("mouldPanel",wantView);}catch(e){}
 }
 function viewFromHash(){const v=VIEWS.find(x=>x.hash===location.hash.slice(1));return v?v.key:null;}
-(function(){let saved=null;try{saved=localStorage.getItem("mouldPanel");}catch(e){}applyView(viewFromHash()||saved||"admin");})();
+(function(){let saved=null;try{saved=localStorage.getItem("mouldPanel");}catch(e){}userPicked=!!viewFromHash();applyView(viewFromHash()||saved||"admin");})();
 $("viewSel").addEventListener("change",e=>{
-  applyView(e.target.value);
-  try{location.hash=VIEWS.find(v=>v.key===view).hash;}catch(err){}
+  userPicked=true;applyView(e.target.value);
+  try{location.hash=VIEWS.find(v=>v.key===wantView).hash;}catch(err){}
   render();
 });
-window.addEventListener("hashchange",()=>{const k=viewFromHash();if(k&&k!==view){applyView(k);render();}});
+window.addEventListener("hashchange",()=>{const k=viewFromHash();if(k&&k!==wantView){userPicked=true;applyView(k);render();}});
 $("addBtn").addEventListener("click",()=>openForm(null));
 $("form").addEventListener("submit",saveForm);
 $("formCancel").addEventListener("click",()=>$("formDlg").close());
