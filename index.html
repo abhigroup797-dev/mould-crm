@@ -150,6 +150,8 @@ audio{display:block;width:100%;max-width:340px;height:36px;margin:6px 0 2px}
 .tasks strong{font-weight:600;overflow-wrap:anywhere;white-space:pre-wrap}
 .tasks li.got strong{color:var(--muted);font-weight:500;text-decoration:line-through}
 .tasks .late{color:var(--red);font-weight:600}
+.tlist{list-style:none;margin:10px 0 0;padding:0}
+.tlist li{display:grid;grid-template-columns:minmax(0,1fr) auto auto;gap:10px;align-items:center;padding:9px 0;border-top:1px solid var(--line)}
 .pbar{height:8px;border-radius:4px;background:var(--seg);overflow:hidden;min-width:50px}
 .pbar i{display:block;height:100%;background:var(--green);border-radius:4px}
 .pline{display:flex;align-items:center;gap:10px;font-size:14.5px;color:var(--muted);margin:10px 0 0}
@@ -840,7 +842,7 @@ function renderDetail(){
   const mine=files.filter(f=>f.projectId===p.id).sort((a,b)=>b.at-a.at);
   ensureUrls(mine);
   const pj=jobs.filter(j=>j.projectId===p.id).sort((a,b)=>a.at-b.at);
-  const pp=parts.filter(x=>x.projectId===p.id).sort((a,b)=>a.at-b.at);
+  const pp=parts.filter(x=>x.projectId===p.id).sort((a,b)=>a.at-b.at),mt=mouldTasks(p.id);
   const par=p.parentId?projects.find(x=>x.id===p.parentId):null,subs=projects.filter(x=>x.parentId===p.id);
   const phoneHref="tel:"+p.phone.replace(/[^\d+]/g,"");
   const fileInput=h("input",{type:"file",multiple:true,hidden:true,
@@ -878,6 +880,9 @@ function renderDetail(){
     canWrite?h("button",{class:"btn",type:"button",onclick:()=>openPart(p.id)},"Add part or punch"):"",
     pp.length?[canWrite?h("p",{class:"hint",text:"Tap a work once to mark it to do, again when it is done, and a third time to remove it."}):"",
       h("ul",{class:"parts"},pp.map(partBlock))]:h("p",{class:"muted",text:"No parts or punches added for this mould yet."}),
+    (mt.length||canAssign())?[h("h3",{text:"Tasks for this mould ("+mt.length+")"}),
+      canAssign()?h("button",{class:"btn",type:"button",onclick:()=>openTask(p.id)},"Add task"):"",
+      mt.length?h("ul",{class:"tasks tlist"},mt.map(t=>taskRow(t,"d:"))):h("p",{class:"muted",text:"No tasks for this mould."})]:[],
     h("h3",{text:"Outside job work ("+pj.length+")"}),
     canWrite?h("button",{class:"btn",type:"button",onclick:()=>openJob(p.id)},"Add job work"):"",
     pj.length?h("ul",{class:"files jobs"},pj.map(jobRow)):h("p",{class:"muted",text:"Nothing is sent outside for this project."}),
@@ -953,20 +958,25 @@ function myKeys(){return [myId].filter(Boolean);}
 function assignables(){return profiles.filter(x=>x.role&&x.id!==myId).map(x=>({id:x.id,name:x.name||x.email,role:x.role}));}
 function roleLabel(k){return (VIEWS.find(v=>v.key===k)||{label:k.replace(/^op:/,"")+" panel"}).label;}
 function visibleTasks(){
-  if(canAssign())return view==="admin"?tasks:tasks.filter(t=>t.toPanel===view);
+  if(canAssign())return view==="admin"?tasks:tasks.filter(t=>t.toPanel===view||(view==="designer"&&t.projectId));
   const me=myKeys(),r=myRole()||view;
-  return tasks.filter(t=>t.toPerson?me.includes(t.toPerson):t.toPanel===r);
+  return tasks.filter(t=>mineTask(t,me,r)||(r==="designer"&&t.projectId));
+}
+function mineTask(t,me,r){return t.toPerson?me.includes(t.toPerson):t.toPanel===r;}
+function mouldTasks(pid){
+  const me=myKeys(),r=myRole()||view,all=canAssign()||r==="designer";
+  return tasks.filter(t=>t.projectId===pid&&(all||mineTask(t,me,r))).sort((a,b)=>(a.done-b.done)||(a.at-b.at));
 }
 function taskWho(t){
   if(t.toPerson){const a=assignables().find(x=>x.id===t.toPerson);return a?a.name:(myKeys().includes(t.toPerson)?"you":"an employee");}
   return "everyone in "+roleLabel(t.toPanel);
 }
-function taskRow(t){
+function taskRow(t,where){
   const d=parseDue(t.due),t0=new Date();t0.setHours(0,0,0,0);
   const late=d&&!t.done&&d<t0,m=t.projectId?projects.find(x=>x.id===t.projectId):null;
   return h("li",{class:t.done?"got":""},
-    h("div",null,h("strong",{text:t.text}),t.voice?(voiceUrl(t.voice)?audioEl("t:"+t.id,voiceUrl(t.voice)):h("span",{class:"fmeta",text:"Loading voice note\u2026"})):"",h("span",{class:"fmeta"},h("span",{text:"For "+taskWho(t)}),
-      m?h("span",{text:m.part||"Mould"}):"",d?h("span",{class:late?"late":"",text:(late?"Was due ":"Due ")+fmtDate(d)}):"",t.done?h("span",{text:"Done"}):"")),
+    h("div",null,h("strong",{text:t.text}),t.voice?(voiceUrl(t.voice)?audioEl(where+t.id,voiceUrl(t.voice)):h("span",{class:"fmeta",text:"Loading voice note\u2026"})):"",h("span",{class:"fmeta"},h("span",{text:"For "+taskWho(t)}),
+      m?h("button",{class:"flink",style:"display:inline",type:"button",text:m.part||"Mould",onclick:()=>openDetail(m.id)}):"",d?h("span",{class:late?"late":"",text:(late?"Was due ":"Due ")+fmtDate(d)}):"",t.done?h("span",{text:"Done"}):"")),
     h("button",{class:"btn small"+(t.done?"":" primary"),type:"button",onclick:()=>toggleTask(t)},t.done?"Reopen":"Mark done"),
     canAssign()?h("button",{class:"btn small danger",type:"button","aria-label":"Delete task "+t.text,onclick:()=>deleteTask(t)},"Delete"):"");
 }
@@ -977,15 +987,16 @@ function taskBlock(){
   return h("details",{class:"team tasks",open:taskOpen,ontoggle:e=>{taskOpen=e.target.open;}},
     h("summary",{text:"Task pad ("+open+" to do)"}),
     boss?h("button",{class:"btn",type:"button",style:"margin-bottom:12px",onclick:openTask},"Add task"):"",
-    list.length?h("ul",null,list.map(taskRow)):h("p",{class:"hint",text:"No tasks here yet. Add a task and assign it to an employee or a panel."}));
+    list.length?h("ul",null,list.map(t=>taskRow(t,"t:"))):h("p",{class:"hint",text:"No tasks here yet. Add a task and assign it to an employee or a panel."}));
 }
-function openTask(){
+function openTask(pid){
   $("t_text").value="";$("t_due").value="";taskVoice=null;$("t_voice").replaceChildren();
   $("t_to").replaceChildren(...assignables().map(a=>h("option",{value:"person:"+a.id,text:a.name+", "+roleLabel(a.role)})),
     ...VIEWS.filter(v=>v.key!=="admin").map(v=>h("option",{value:"panel:"+v.key,text:"Everyone in "+v.label})));
   if(view!=="admin")$("t_to").value="panel:"+view;
   $("t_mould").replaceChildren(h("option",{value:"",text:"No mould"}),...projects.slice().sort((a,b)=>(a.product+a.part).localeCompare(b.product+b.part))
     .map(x=>h("option",{value:x.id,text:[x.product,x.part].filter(Boolean).join(", ")})));
+  if(typeof pid==="string")$("t_mould").value=pid;
   $("taskDlg").showModal();
 }
 async function saveTask(e){
