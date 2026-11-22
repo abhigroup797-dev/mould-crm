@@ -909,6 +909,8 @@ function renderDetail(){
   const p=projects.find(x=>x.id===openId),dlg=$("detail"),body=$("detailBody");
   if(!p){if(dlg.open)dlg.close();openId=null;return;}
   const top=body.scrollTop,d=dueInfo(p);
+  const phInput=h("input",{type:"file",accept:"image/png,image/jpeg,image/webp",hidden:true,
+    onchange:e=>{const f=e.target.files[0];e.target.value="";photoFor=p.product;uploadPhoto(f);}});
   const mine=files.filter(f=>f.projectId===p.id).sort((a,b)=>b.at-a.at);
   ensureUrls(mine);
   const pj=jobs.filter(j=>j.projectId===p.id).sort((a,b)=>a.at-b.at);
@@ -929,6 +931,7 @@ function renderDetail(){
       h("div",null,h("h2",{text:p.part||"Untitled mould"}),h("p",{text:[p.product,p.jobNo].filter(Boolean).join(", ")})),
       h("button",{class:"btn small",type:"button",onclick:()=>dlg.close()},"Close")),
     detailPhoto(p),
+    (canPlan()&&p.product&&assets)?[phInput,h("button",{class:"btn small",type:"button",style:"margin:0 0 14px",onclick:()=>phInput.click()},photos[p.product]?"Change photo":"Add product photo")]:"",
     h("p",{class:"stagenow",text:"Stage: "+STAGES[si(p)]}),
     track(p,true),
     h("dl",{class:"facts"},
