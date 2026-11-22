@@ -12,7 +12,8 @@ What it does:
 - Task pad: the admin assigns tasks to an employee or a panel, and the employee marks them done
 - Dashboard settings for the admin: shop name, extra work options and what the dashboard shows
 - Admin panel, Designer panel, VMC operator panel and a panel for every other work
-- Each employee logs in with an email and password and sees only their own panel
+- Each employee logs in with an email and password and gets only their own panel: their own work, their tasks and a view of all moulds
+- Roles: the admin does everything, a designer plans parts and their work, an operator marks only their own process done
 
 ## Files
 
