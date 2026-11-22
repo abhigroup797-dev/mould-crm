@@ -390,7 +390,7 @@ const STAGES=["Enquiry","Design","Machining","Fitting","Trial","Dispatched"];
 const TYPES={png:"image/png",jpg:"image/jpeg",jpeg:"image/jpeg",gif:"image/gif",webp:"image/webp",svg:"image/svg+xml",mp4:"video/mp4",webm:"video/webm",pdf:"application/pdf",csv:"text/csv",md:"text/markdown",json:"application/json",txt:"text/plain"};
 const MAX=50*1024*1024,BUCKET="mould-files";
 const JOB_STATUS=["To send","At vendor","Received"];
-const BASE_OPS=["EDM design","EDM","Wire cut","Order","VMC","Turning","Milling","Drilling","Grinding","Heat treatment","Polishing","Fitting"];
+const BASE_OPS=["Material purchase","Shaping","Grinding","EDM design","EDM","Wire cut","Order","VMC","Turning","Milling","Drilling","Heat treatment","Polishing","Fitting"];
 let OPS=BASE_OPS.slice();
 const OP_SAY={none:"not needed. Tap to mark it to do",pending:"to do. Tap to mark it done",done:"done. Tap to remove it"};
 const OP_NEXT={none:"pending",pending:"done",done:"none"};
