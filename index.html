@@ -142,6 +142,10 @@ textarea{resize:vertical;min-height:84px}
 .seglabel{font:500 12px/1.2 var(--cond);color:var(--muted);text-align:center;overflow:hidden;text-overflow:ellipsis}
 .seg.cur .seglabel{color:var(--ink);font-weight:600}
 .stagenow{display:none;font-weight:600;margin:0 0 6px}
+.team.tasks li{grid-template-columns:minmax(0,1fr) auto auto}
+.tasks strong{font-weight:600;overflow-wrap:anywhere;white-space:pre-wrap}
+.tasks li.got strong{color:var(--muted);font-weight:500;text-decoration:line-through}
+.tasks .late{color:var(--red);font-weight:600}
 .pbar{height:8px;border-radius:4px;background:var(--seg);overflow:hidden;min-width:50px}
 .pbar i{display:block;height:100%;background:var(--green);border-radius:4px}
 .pline{display:flex;align-items:center;gap:10px;font-size:14.5px;color:var(--muted);margin:10px 0 0}
@@ -371,6 +375,20 @@ label input,label select,label textarea{margin-top:4px;font-weight:400;font-size
   </form>
 </dialog>
 
+<dialog id="taskDlg" class="modal" style="width:min(460px,calc(100% - 24px))">
+  <form class="inner" id="taskForm">
+    <div class="dhead"><h2>Add task</h2></div>
+    <label>Task<textarea id="t_text" required maxlength="300" style="min-height:70px"></textarea></label>
+    <label style="margin-top:14px">Assign to<select id="t_to"></select></label>
+    <label style="margin-top:14px">Mould (optional)<select id="t_mould"></select></label>
+    <label style="margin-top:14px">Due date (optional)<input id="t_due" type="date"></label>
+    <div class="formfoot">
+      <button class="btn" type="button" id="taskCancel">Cancel</button>
+      <button class="btn primary" type="submit" id="taskSave">Add task</button>
+    </div>
+  </form>
+</dialog>
+
 <dialog id="jobDlg" class="modal" style="width:min(460px,calc(100% - 24px))">
   <form class="inner" id="jobForm">
     <div class="dhead"><h2>Add job work</h2></div>
@@ -427,6 +445,7 @@ let sb=null,profiles=[],pwFor=null,signupMode=false,entered=false;
 const urls={},urlWait=new Set(),urlBad=new Set();
 const closed=new Set();
 let photos=Object.create(null),photoFor=null;
+let tasks=[],taskOpen=true;
 let cfg={shop:"",extra:[],showDone:true,showPhotos:true,showCust:true,startClosed:false,soon:7},cfgExists=false;
 let formParent=null,view="admin",roles={},people=[],isOwner=false,teamOpen=false,empPick=null,staff=[],claims={},asked=false,codes={},whoPick=null;
 const seen={};
@@ -731,18 +750,19 @@ function teamBlock(){
 }
 function renderAdminBox(){
   const box=$("adminBox");
-  if(view!=="admin"||!gotProjects){box.hidden=true;return;}
+  if(!gotProjects){box.hidden=true;return;}
   const cnt={},kids=[];
   for(const pt of parts)for(const k of Object.keys(pt.ops))if(pt.ops[k]==="pending")cnt[k]=(cnt[k]||0)+1;
   const prog=VIEWS.filter(v=>v.key.indexOf("op:")===0).map(v=>({v:v,s:stat(parts,v.key.slice(3))})).filter(x=>x.s.total);
-  if(prog.length){
+  if(view==="admin"&&prog.length){
     const all=stat(parts);
     kids.push(h("div",{class:"prog"},
       h("div",null,h("span",{class:"nm",text:"All work"}),h("span",{class:"ct",text:all.done+" of "+all.total+" done, "+all.pct+"%"}),pbar(all.pct)),
       prog.map(x=>h("button",{type:"button","aria-label":"Open "+x.v.label,onclick:()=>goView(x.v.key)},
         h("span",{class:"nm",text:x.v.key.slice(3)}),h("span",{class:"ct",text:x.s.done+" of "+x.s.total+" done, "+x.s.pct+"%"}),pbar(x.s.pct)))));
   }
-  if(isAdmin())kids.push(teamBlock());
+  {const tb=taskBlock();if(tb)kids.push(tb);}
+  if(view==="admin"&&isAdmin())kids.push(teamBlock());
   box.hidden=!kids.length;box.replaceChildren(...kids);
 }
 
@@ -874,6 +894,71 @@ async function resolveNames(root){
 function openPreview(f,url,isVid){
   const el=isVid?h("video",{src:url,controls:true,playsinline:true}):h("img",{src:url,alt:f.name});
   $("pvBody").replaceChildren(el);$("preview").showModal();
+}
+
+/* ---------- task pad ---------- */
+function canAssign(){return isAdmin();}
+function myKeys(){return [myId].filter(Boolean);}
+function assignables(){return profiles.filter(x=>x.role&&x.id!==myId).map(x=>({id:x.id,name:x.name||x.email,role:x.role}));}
+function roleLabel(k){return (VIEWS.find(v=>v.key===k)||{label:k.replace(/^op:/,"")+" panel"}).label;}
+function visibleTasks(){
+  if(canAssign())return view==="admin"?tasks:tasks.filter(t=>t.toPanel===view);
+  const me=myKeys(),r=myRole()||view;
+  return tasks.filter(t=>t.toPerson?me.includes(t.toPerson):t.toPanel===r);
+}
+function taskWho(t){
+  if(t.toPerson){const a=assignables().find(x=>x.id===t.toPerson);return a?a.name:(myKeys().includes(t.toPerson)?"you":"an employee");}
+  return "everyone in "+roleLabel(t.toPanel);
+}
+function taskRow(t){
+  const d=parseDue(t.due),t0=new Date();t0.setHours(0,0,0,0);
+  const late=d&&!t.done&&d<t0,m=t.projectId?projects.find(x=>x.id===t.projectId):null;
+  return h("li",{class:t.done?"got":""},
+    h("div",null,h("strong",{text:t.text}),h("span",{class:"fmeta"},h("span",{text:"For "+taskWho(t)}),
+      m?h("span",{text:m.part||"Mould"}):"",d?h("span",{class:late?"late":"",text:(late?"Was due ":"Due ")+fmtDate(d)}):"",t.done?h("span",{text:"Done"}):"")),
+    h("button",{class:"btn small"+(t.done?"":" primary"),type:"button",onclick:()=>toggleTask(t)},t.done?"Reopen":"Mark done"),
+    canAssign()?h("button",{class:"btn small danger",type:"button","aria-label":"Delete task "+t.text,onclick:()=>deleteTask(t)},"Delete"):"");
+}
+function taskBlock(){
+  const boss=canAssign(),list=visibleTasks().slice().sort((a,b)=>(a.done-b.done)||((a.due||"9999")<(b.due||"9999")?-1:(a.due||"9999")>(b.due||"9999")?1:a.at-b.at));
+  if(!boss&&!list.length)return null;
+  const open=list.filter(t=>!t.done).length;
+  return h("details",{class:"team tasks",open:taskOpen,ontoggle:e=>{taskOpen=e.target.open;}},
+    h("summary",{text:"Task pad ("+open+" to do)"}),
+    boss?h("button",{class:"btn",type:"button",style:"margin-bottom:12px",onclick:openTask},"Add task"):"",
+    list.length?h("ul",null,list.map(taskRow)):h("p",{class:"hint",text:"No tasks here yet. Add a task and assign it to an employee or a panel."}));
+}
+function openTask(){
+  $("t_text").value="";$("t_due").value="";
+  $("t_to").replaceChildren(...assignables().map(a=>h("option",{value:"person:"+a.id,text:a.name+", "+roleLabel(a.role)})),
+    ...VIEWS.filter(v=>v.key!=="admin").map(v=>h("option",{value:"panel:"+v.key,text:"Everyone in "+v.label})));
+  if(view!=="admin")$("t_to").value="panel:"+view;
+  $("t_mould").replaceChildren(h("option",{value:"",text:"No mould"}),...projects.slice().sort((a,b)=>(a.product+a.part).localeCompare(b.product+b.part))
+    .map(x=>h("option",{value:x.id,text:[x.product,x.part].filter(Boolean).join(", ")})));
+  $("taskDlg").showModal();
+}
+async function saveTask(e){
+  e.preventDefault();
+  const v=$("t_to").value,text=$("t_text").value.trim();
+  if(!text||!v)return;
+  const data={text:text,toPanel:"",toPerson:"",projectId:$("t_mould").value,due:$("t_due").value,done:false,by:myId||"",at:Date.now()};
+  if(v.indexOf("person:")===0){data.toPerson=v.slice(7);const a=assignables().find(x=>x.id===data.toPerson);data.toPanel=a?a.role:"";}
+  else data.toPanel=v.slice(6);
+  const btn=$("taskSave");btn.disabled=true;
+  try{await db.collection("tasks").add(data);$("taskDlg").close();toast("Task added");}
+  catch(err){writeFailed(err);}
+  btn.disabled=false;
+}
+async function toggleTask(t){
+  if(busy[t.id])return;busy[t.id]=true;
+  try{await db.doc("tasks/"+t.id).update({done:!t.done,doneBy:myId||"",doneAt:Date.now()});}
+  catch(e){writeFailed(e);}
+  busy[t.id]=false;
+}
+async function deleteTask(t){
+  if(!await ask("Delete this task?","The task is removed for everyone.","Delete task"))return;
+  try{await db.doc("tasks/"+t.id).delete();toast("Task deleted");}
+  catch(e){writeFailed(e);}
 }
 
 /* ---------- work progress ---------- */
@@ -1175,13 +1260,15 @@ $("partCancel").addEventListener("click",()=>$("partDlg").close());
 $("opForm").addEventListener("submit",saveOp);
 $("opCancel").addEventListener("click",()=>$("opDlg").close());
 $("pvClose").addEventListener("click",()=>$("preview").close());
+$("taskForm").addEventListener("submit",saveTask);
+$("taskCancel").addEventListener("click",()=>$("taskDlg").close());
 $("setBtn").addEventListener("click",openSettings);
 $("setForm").addEventListener("submit",saveSettings);
 $("setCancel").addEventListener("click",()=>$("setDlg").close());
 $("photoInput").addEventListener("change",e=>{const f=e.target.files[0];e.target.value="";uploadPhoto(f);});
 $("preview").addEventListener("close",()=>$("pvBody").replaceChildren());
 $("detail").addEventListener("close",()=>{openId=null;});
-["detail","formDlg","jobDlg","partDlg","opDlg","empDlg","setDlg","pwDlg","preview"].forEach(id=>{const d=$(id);d.addEventListener("click",e=>{if(e.target===d)d.close();});});
+["detail","formDlg","jobDlg","partDlg","opDlg","empDlg","setDlg","taskDlg","pwDlg","preview"].forEach(id=>{const d=$(id);d.addEventListener("click",e=>{if(e.target===d)d.close();});});
 
 /* ---------- login and start ---------- */
 function gate(msg,form,out){
@@ -1257,6 +1344,11 @@ async function enter(session){
       for(const k of Object.keys(src).slice(0,40)){const c=cleanOp(k);if(c&&c===k&&(src[k]==="pending"||src[k]==="done"))ops[k]=src[k];}
       return{id:d.id,projectId:str(x.projectId,80),kind:x.kind==="Punch"?"Punch":"Part",name:str(x.name,80)||"Part",ops:ops,at:+x.at||0};
     });
+    render();
+  },()=>{});
+  db.collection("tasks").onSnapshot(snap=>{
+    tasks=snap.docs.map(d=>{const x=d.data()||{};return{id:d.id,text:str(x.text,300)||"Task",toPanel:str(x.toPanel,40),toPerson:str(x.toPerson,80),
+      projectId:str(x.projectId,80),due:str(x.due,10),done:x.done===true,at:+x.at||0};});
     render();
   },()=>{});
   db.collection("settings").onSnapshot(snap=>{

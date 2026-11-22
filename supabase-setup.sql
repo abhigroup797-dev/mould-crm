@@ -89,7 +89,7 @@ create table if not exists public.items (
 );
 alter table public.items drop constraint if exists items_coll_check;
 alter table public.items add constraint items_coll_check
-  check (coll in ('projects', 'parts', 'jobwork', 'files', 'productphotos', 'settings'));
+  check (coll in ('projects', 'parts', 'jobwork', 'files', 'productphotos', 'settings', 'tasks'));
 create index if not exists items_coll_idx on public.items (coll);
 alter table public.items enable row level security;
 

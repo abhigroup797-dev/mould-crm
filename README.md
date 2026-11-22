@@ -9,6 +9,7 @@ What it does:
 - File upload on each mould (drawings, CAD files, photos, videos, Excel), up to 50 MB per file
 - A photo for each product, shown on the dashboard and inside each mould
 - Outside job work with vendor and status
+- Task pad: the admin assigns tasks to an employee or a panel, and the employee marks them done
 - Dashboard settings for the admin: shop name, extra work options and what the dashboard shows
 - Admin panel, Designer panel, VMC operator panel and a panel for every other work
 - Each employee logs in with an email and password and sees only their own panel
