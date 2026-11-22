@@ -141,6 +141,7 @@ textarea{resize:vertical;min-height:84px}
 .track.big .seg.cur::before{height:10px;box-shadow:0 0 0 3px var(--blue-soft)}
 .seglabel{font:500 12px/1.2 var(--cond);color:var(--muted);text-align:center;overflow:hidden;text-overflow:ellipsis}
 .seg.cur .seglabel{color:var(--ink);font-weight:600}
+.stagenow{display:none;font-weight:600;margin:0 0 6px}
 
 .empty{padding:56px 20px;text-align:center;color:var(--muted)}
 .empty p{margin:0 0 14px;font-size:17px}
@@ -202,6 +203,8 @@ label input,label select,label textarea{margin-top:4px;font-weight:400;font-size
   .team li select{grid-column:1/-1}
   .team li.srow{grid-template-columns:minmax(0,1fr) auto}
   .tools{flex-wrap:wrap}
+  .stagenow{display:block}
+  .track.big .seglabel{display:none}
   .group{flex-wrap:wrap}
   .gtoggle{flex:1 1 150px}
   .tools select{flex:1 1 100%}
@@ -386,7 +389,8 @@ label input,label select,label textarea{margin-top:4px;font-weight:400;font-size
 <script>
 (function(){
 "use strict";
-const STAGES=["Enquiry","Design","Machining","Fitting","Trial","Dispatched"];
+const STAGES=["Enquiry","Design","Purchase","Shaping","Grinding","Machining","Fitting","Trial","Dispatched"];
+const DONE=STAGES.length-1;
 const TYPES={png:"image/png",jpg:"image/jpeg",jpeg:"image/jpeg",gif:"image/gif",webp:"image/webp",svg:"image/svg+xml",mp4:"video/mp4",webm:"video/webm",pdf:"application/pdf",csv:"text/csv",md:"text/markdown",json:"application/json",txt:"text/plain"};
 const MAX=50*1024*1024,BUCKET="mould-files";
 const JOB_STATUS=["To send","At vendor","Received"];
@@ -443,10 +447,10 @@ function parseDue(s){const m=/^(\d{4})-(\d{2})-(\d{2})$/.exec(s||"");return m?ne
 function fmtDate(d){const o={day:"numeric",month:"short"};if(d.getFullYear()!==new Date().getFullYear())o.year="numeric";return d.toLocaleDateString("en-IN",o);}
 function si(p){return Math.max(0,STAGES.indexOf(p.stage));}
 function daysLeft(p){const d=parseDue(p.due);if(!d)return null;const t=new Date();t.setHours(0,0,0,0);return Math.round((d-t)/864e5);}
-function isOverdue(p){const n=daysLeft(p);return n!==null&&n<0&&si(p)<5;}
+function isOverdue(p){const n=daysLeft(p);return n!==null&&n<0&&si(p)<DONE;}
 function dueInfo(p){
   const d=parseDue(p.due);if(!d)return{text:"No due date",cls:"none"};
-  const n=daysLeft(p),done=si(p)===5,date=fmtDate(d);
+  const n=daysLeft(p),done=si(p)===DONE,date=fmtDate(d);
   if(done)return{text:"Due "+date,cls:"none"};
   if(n<0)return{text:date+", "+(-n)+(n===-1?" day late":" days late"),cls:"late"};
   if(n===0)return{text:"Due today",cls:"soon"};
@@ -549,7 +553,7 @@ function track(p,big){
       onclick:e=>{e.stopPropagation();if(k!==i)setStage(p,k);}},
       big?h("span",{class:"seglabel",text:s}):null));
   });
-  return h("div",{class:"track"+(big?" big":"")+(i===5?" done":""),role:"group","aria-label":"Stage"},segs,
+  return h("div",{class:"track"+(big?" big":"")+(i===DONE?" done":""),role:"group","aria-label":"Stage"},segs,
     big?null:h("span",{class:"stagename",text:STAGES[i]}));
 }
 
@@ -565,11 +569,11 @@ function visible(){
   return projects.filter(p=>{
     if(filter==="overdue"){if(!isOverdue(p))return false;}
     else if(filter==="jobwork"){if(!oj[p.id])return false;}
-    else if(filter==="all"){if(!cfg.showDone&&!q&&si(p)===5)return false;}
+    else if(filter==="all"){if(!cfg.showDone&&!q&&si(p)===DONE)return false;}
     else if(STAGES[si(p)]!==filter)return false;
     return !q||(p.product+" "+p.jobNo+" "+p.part+" "+p.customer+(p.madeFor==="Own"?" own purpose":"")+(jt[p.id]||"")).toLowerCase().includes(q);
   }).sort((a,b)=>{
-    const da=si(a)===5,dbb=si(b)===5;if(da!==dbb)return da?1:-1;
+    const da=si(a)===DONE,dbb=si(b)===DONE;if(da!==dbb)return da?1:-1;
     const x=a.due||"9999",y=b.due||"9999";if(x!==y)return x<y?-1:1;
     return a.jobNo.localeCompare(b.jobNo,undefined,{numeric:true});
   });
@@ -737,7 +741,7 @@ function renderPanel(){
         h("span",{class:"due "+d.cls,text:d.text}),
         h("span",{class:"fcount",text:n===1?"1 file":n+" files"}),
         canWrite?h("button",{class:"btn small primary",type:"button","aria-label":"Design done for "+p.part,
-          onclick:async e=>{e.stopPropagation();await setStage(p,2);toast("Design done. Mould moved to Machining.");}},"Design done"):"");
+          onclick:async e=>{e.stopPropagation();await setStage(p,STAGES.indexOf("Design")+1);toast("Design done. Mould moved to "+STAGES[STAGES.indexOf("Design")+1]+".");}},"Design done"):"");
     });
   }else{
     const op=view.slice(3);
@@ -795,11 +799,12 @@ function renderDetail(){
     ondrop:e=>{e.preventDefault();drop.classList.remove("over");if(e.dataTransfer&&e.dataTransfer.files.length)uploadFiles(p.id,e.dataTransfer.files);}},
     h("button",{class:"btn primary",type:"button",disabled:uploading,onclick:()=>fileInput.click()},"Upload files"),fileInput,
     h("small",{text:"Drawings, CAD files, photos, videos and Excel sheets, up to 50 MB each. You can also drop files here."}));
-  body.replaceChildren(
+  body.replaceChildren(...[
     h("div",{class:"dhead"},
       h("div",null,h("h2",{text:p.part||"Untitled mould"}),h("p",{text:[p.product,p.jobNo].filter(Boolean).join(", ")})),
       h("button",{class:"btn small",type:"button",onclick:()=>dlg.close()},"Close")),
     detailPhoto(p),
+    h("p",{class:"stagenow",text:"Stage: "+STAGES[si(p)]}),
     track(p,true),
     h("dl",{class:"facts"},
       fact("Made for",p.madeFor==="Own"?"Own purpose":"Customer"),
@@ -828,7 +833,7 @@ function renderDetail(){
     mine.length?h("ul",{class:"files"},mine.map(fileRow)):h("p",{class:"muted",text:"No files uploaded for this project yet."}),
     canWrite?h("div",{class:"actions"},
       isAdmin()?h("button",{class:"btn danger",type:"button",onclick:()=>deleteProject(p)},"Delete mould"):h("span"),
-      h("button",{class:"btn",type:"button",onclick:()=>openForm(p)},"Edit details")):"");
+      h("button",{class:"btn",type:"button",onclick:()=>openForm(p)},"Edit details")):""].flat(3).filter(x=>x!=null&&x!==false&&x!==""));
   body.scrollTop=top;
   resolveNames(body);
 }
