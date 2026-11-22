@@ -337,7 +337,9 @@ label input,label select,label textarea{margin-top:4px;font-weight:400;font-size
   <form class="inner" id="setForm">
     <div class="dhead"><h2>Dashboard settings</h2></div>
     <label>Shop name<input id="s_shop" maxlength="60" placeholder="Mould projects"></label>
-    <label style="margin-top:14px">Extra work options, separated by commas<input id="s_extra" maxlength="300" placeholder="Laser marking, Texturing"></label>
+    <label style="margin-top:14px">Mould process stages, in order, separated by commas<textarea id="s_stages" maxlength="500" style="min-height:70px"></textarea></label>
+    <p class="hint" style="margin-top:4px">Add a process by typing its name where it belongs. The last one is the finished stage.</p>
+    <label style="margin-top:14px">Extra work options for parts, separated by commas<input id="s_extra" maxlength="300" placeholder="Laser marking, Texturing"></label>
     <label style="margin-top:14px">Mark a mould as due soon when this many days are left<input id="s_soon" type="number" min="1" max="60" inputmode="numeric"></label>
     <div class="checks" style="flex-direction:column;margin-top:16px">
       <label><input type="checkbox" id="s_done">Show dispatched moulds in the All list</label>
@@ -389,8 +391,8 @@ label input,label select,label textarea{margin-top:4px;font-weight:400;font-size
 <script>
 (function(){
 "use strict";
-const STAGES=["Enquiry","Design","Purchase","Shaping","Grinding","Machining","Fitting","Trial","Dispatched"];
-const DONE=STAGES.length-1;
+const BASE_STAGES=["Enquiry","Design","Purchase","Shaping","Grinding","Machining","Fitting","Trial","Dispatched"];
+let STAGES=BASE_STAGES.slice(),DONE=STAGES.length-1;
 const TYPES={png:"image/png",jpg:"image/jpeg",jpeg:"image/jpeg",gif:"image/gif",webp:"image/webp",svg:"image/svg+xml",mp4:"video/mp4",webm:"video/webm",pdf:"application/pdf",csv:"text/csv",md:"text/markdown",json:"application/json",txt:"text/plain"};
 const MAX=50*1024*1024,BUCKET="mould-files";
 const JOB_STATUS=["To send","At vendor","Received"];
@@ -741,7 +743,7 @@ function renderPanel(){
         h("span",{class:"due "+d.cls,text:d.text}),
         h("span",{class:"fcount",text:n===1?"1 file":n+" files"}),
         canWrite?h("button",{class:"btn small primary",type:"button","aria-label":"Design done for "+p.part,
-          onclick:async e=>{e.stopPropagation();await setStage(p,STAGES.indexOf("Design")+1);toast("Design done. Mould moved to "+STAGES[STAGES.indexOf("Design")+1]+".");}},"Design done"):"");
+          onclick:async e=>{e.stopPropagation();await setStage(p,Math.min(DONE,STAGES.indexOf("Design")+1));toast("Design done. Mould moved to "+STAGES[Math.min(DONE,STAGES.indexOf("Design")+1)]+".");}},"Design done"):"");
     });
   }else{
     const op=view.slice(3);
@@ -859,19 +861,24 @@ function fillLists(){
   er.replaceChildren(...VIEWS.map(v=>h("option",{value:v.key,text:v.key==="admin"?"Admin":v.label})));
   er.value=VIEWS.some(v=>v.key===keep)?keep:"designer";
   $("p_checks").replaceChildren(...OPS.map(k=>h("label",null,h("input",{type:"checkbox",value:k}),k)));
+  const fs=$("f_stage"),cur=fs.value;
+  fs.replaceChildren(...STAGES.map(x=>h("option",{value:x,text:x})));if(STAGES.includes(cur))fs.value=cur;
 }
 function applySettings(x){
   x=x||{};
   const extra=(Array.isArray(x.extra)?x.extra:[]).map(cleanOp).filter(k=>k&&!BASE_OPS.includes(k)).slice(0,10);
   cfg={shop:str(x.shop,60),extra:[...new Set(extra)],showDone:x.showDone!==false,showPhotos:x.showPhotos!==false,
     showCust:x.showCust!==false,startClosed:x.startClosed===true,soon:Math.min(60,Math.max(1,Math.round(+x.soon)||7))};
+  const st=[...new Set((Array.isArray(x.stages)?x.stages:[]).map(cleanOp).filter(Boolean))].slice(0,15);
+  STAGES=st.length>=2?st:BASE_STAGES.slice();DONE=STAGES.length-1;
+  if(!["all","overdue","jobwork"].includes(filter)&&!STAGES.includes(filter))filter="all";
   OPS=BASE_OPS.concat(cfg.extra);VIEWS=buildViews();
   if(!VIEWS.some(v=>v.key===view)&&!locked())view="admin";
   fillLists();
   $("title").textContent=cfg.shop||"Mould projects";document.title=cfg.shop||"Mould CRM";
 }
 function openSettings(){
-  $("s_shop").value=cfg.shop;$("s_extra").value=cfg.extra.join(", ");$("s_soon").value=cfg.soon;
+  $("s_shop").value=cfg.shop;$("s_stages").value=STAGES.join(", ");$("s_extra").value=cfg.extra.join(", ");$("s_soon").value=cfg.soon;
   $("s_done").checked=cfg.showDone;$("s_photos").checked=cfg.showPhotos;$("s_cust").checked=cfg.showCust;$("s_closed").checked=cfg.startClosed;
   $("setDlg").showModal();
 }
@@ -880,6 +887,8 @@ async function saveSettings(e){
   const data={shop:$("s_shop").value.trim(),extra:$("s_extra").value.split(",").map(cleanOp).filter(Boolean).slice(0,10),
     soon:Math.min(60,Math.max(1,Math.round(+$("s_soon").value)||7)),showDone:$("s_done").checked,showPhotos:$("s_photos").checked,
     showCust:$("s_cust").checked,startClosed:$("s_closed").checked,at:Date.now()};
+  data.stages=[...new Set($("s_stages").value.split(",").map(cleanOp).filter(Boolean))].slice(0,15);
+  if(data.stages.length<2){toast("Keep at least 2 process stages.");return;}
   const btn=$("setSave"),ref=db.doc("settings/"+SET_ID);btn.disabled=true;
   try{
     if(cfgExists)await ref.update(data);else await ref.set(data);
@@ -1101,7 +1110,6 @@ async function saveForm(e){
 }
 
 /* ---------- wiring ---------- */
-STAGES.forEach(s=>$("f_stage").append(h("option",{value:s,text:s})));
 $("q").addEventListener("input",e=>{query=e.target.value;render();});
 fillLists();
 $("empForm").addEventListener("submit",saveEmp);
