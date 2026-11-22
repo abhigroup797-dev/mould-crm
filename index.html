@@ -442,7 +442,7 @@ const BASE_OPS=["Material purchase","Shaping","Grinding","EDM design","EDM","Wir
 let OPS=BASE_OPS.slice();
 const OP_SAY={none:"not needed. Tap to mark it to do",pending:"to do. Tap to mark it done",done:"done. Tap to remove it"};
 const OP_NEXT={none:"pending",pending:"done",done:"none"};
-function buildViews(){return [{key:"admin",hash:"admin",label:"Admin panel, all moulds"},{key:"designer",hash:"designer",label:"Designer panel"}]
+function buildViews(){return [{key:"admin",hash:"admin",label:"Dashboard, all moulds"},{key:"designer",hash:"designer",label:"Designer panel"}]
   .concat(["VMC"].concat(OPS.filter(o=>o!=="VMC")).map(o=>({key:"op:"+o,hash:o.toLowerCase().replace(/\s+/g,"-"),label:o==="VMC"?"VMC operator panel":o+" panel"})));}
 let VIEWS=buildViews();
 const $=id=>document.getElementById(id);
@@ -629,9 +629,8 @@ function chip(key,label,n,warn){
     onclick:()=>{filter=key;render();}},label,h("b",{text:String(n)}));
 }
 function render(){
-  if(locked()&&view!==myRole())view=myRole();
-  $("viewSel").hidden=locked();$("viewSel").value=view;
-  $("addBtn").hidden=!(db&&canWrite)||locked();
+  $("viewSel").value=view;
+  $("addBtn").hidden=!(db&&canWrite);
   $("rail").hidden=view!=="admin";
   $("setBtn").hidden=!(db&&canSet()&&view==="admin");
   renderAdminBox();
@@ -747,7 +746,7 @@ function teamBlock(){
   const others=profiles.filter(p=>p.id!==myId).sort((a,b)=>(a.name||a.email).localeCompare(b.name||b.email));
   return h("details",{class:"team",open:teamOpen,ontoggle:e=>{teamOpen=e.target.open;}},
     h("summary",{text:"Employees and panels ("+others.length+")"}),
-    h("p",{class:"hint",text:"Add each employee with an email, a password and a panel. The employee logs in with that email and password and sees only that panel. Admin sees everything."}),
+    h("p",{class:"hint",text:"Add each employee with an email, a password and a panel. The employee logs in with that email and password and sees the full dashboard and every panel. Only the admin can assign tasks, add employees, change settings and delete."}),
     h("button",{class:"btn",type:"button",style:"margin-bottom:12px",onclick:openEmp},"Add employee"),
     others.length?h("ul",null,others.map(p=>h("li",{class:"srow"},
       h("div",null,h("strong",{text:p.name||"No name"}),h("span",{class:"fmeta"},h("span",{text:p.email}),p.role?"":h("span",{class:"late",text:"No access"}))),

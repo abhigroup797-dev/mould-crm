@@ -98,9 +98,9 @@ create policy "items read" on public.items for select to authenticated
   using (public.is_member());
 
 drop policy if exists "items add" on public.items;
--- Only an admin changes the dashboard settings.
+-- Only an admin changes the dashboard settings and adds (assigns) tasks.
 create policy "items add" on public.items for insert to authenticated
-  with check (public.is_member() and (coll <> 'settings' or public.is_admin()));
+  with check (public.is_member() and (coll not in ('settings', 'tasks') or public.is_admin()));
 
 drop policy if exists "items change" on public.items;
 create policy "items change" on public.items for update to authenticated
