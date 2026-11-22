@@ -1,0 +1,1246 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Mould CRM</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Barlow:wght@400;500;600&family=Barlow+Semi+Condensed:wght@500;600&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#E9EDF0; --surface:#F8FAFB; --raised:#FFFFFF; --ink:#17212B; --muted:#586673; --line:#C9D2D9;
+  --blue:#1D4F91; --on-blue:#FFFFFF; --blue-soft:#D9E4F2; --seg:#C3CDD6;
+  --brass:#8A5D0F; --brass-soft:#F3E6C9; --red:#B3261E; --red-soft:#F7DAD7; --green:#2F6B4F;
+  --font:"Barlow",system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
+  --cond:"Barlow Semi Condensed","Barlow",system-ui,-apple-system,"Segoe UI",sans-serif;
+  color-scheme:light;
+  box-sizing:border-box;
+  padding-top:env(safe-area-inset-top,0px); padding-bottom:env(safe-area-inset-bottom,0px);
+}
+@media (prefers-color-scheme:dark){
+  :root:not([data-theme="light"]){
+    --bg:#12181E; --surface:#1A222A; --raised:#212B35; --ink:#E6ECF1; --muted:#97A5B2; --line:#303C47;
+    --blue:#7FB0EA; --on-blue:#0E1B2B; --blue-soft:#1E3350; --seg:#3A4753;
+    --brass:#E0B15A; --brass-soft:#3A2F17; --red:#F0857D; --red-soft:#43211F; --green:#7FC7A2;
+    color-scheme:dark;
+  }
+}
+:root[data-theme="dark"]{
+  --bg:#12181E; --surface:#1A222A; --raised:#212B35; --ink:#E6ECF1; --muted:#97A5B2; --line:#303C47;
+  --blue:#7FB0EA; --on-blue:#0E1B2B; --blue-soft:#1E3350; --seg:#3A4753;
+  --brass:#E0B15A; --brass-soft:#3A2F17; --red:#F0857D; --red-soft:#43211F; --green:#7FC7A2;
+  color-scheme:dark;
+}
+*,*::before,*::after{box-sizing:inherit}
+html{scroll-padding-top:env(safe-area-inset-top,0px)}
+body{margin:0;background:var(--bg);color:var(--ink);font:400 16px/1.45 var(--font)}
+button,input,select,textarea{font:inherit;color:inherit}
+:focus-visible{outline:2px solid var(--blue);outline-offset:2px}
+[hidden]{display:none!important}
+
+.wrap{max-width:1180px;margin:0 auto;padding:20px 20px 80px}
+.top{display:flex;flex-wrap:wrap;gap:12px 20px;align-items:center;justify-content:space-between}
+h1{font:600 30px/1.1 var(--cond);margin:0;letter-spacing:-.01em}
+.tools{display:flex;gap:10px;flex:1 1 320px;justify-content:flex-end}
+.tools input{flex:1 1 200px;max-width:340px}
+
+input,select,textarea{background:var(--raised);border:1px solid var(--line);border-radius:6px;padding:9px 11px;width:100%}
+textarea{resize:vertical;min-height:84px}
+.btn{border:1px solid var(--line);background:var(--raised);border-radius:6px;padding:9px 15px;font-weight:500;cursor:pointer;white-space:nowrap}
+.btn:hover{border-color:var(--muted)}
+.btn.primary{background:var(--blue);border-color:var(--blue);color:var(--on-blue)}
+.btn.danger{color:var(--red)}
+.btn.small{padding:5px 10px;font-size:14px}
+.btn:disabled{opacity:.55;cursor:default}
+
+.rail{display:flex;gap:8px;overflow-x:auto;padding:18px 0 14px;margin:0}
+.chip{border:1px solid var(--line);background:transparent;border-radius:999px;padding:6px 13px;cursor:pointer;white-space:nowrap;font-weight:500;display:flex;gap:8px;align-items:baseline}
+.chip b{font:600 15px var(--cond);color:var(--muted)}
+.chip[aria-pressed="true"]{background:var(--ink);border-color:var(--ink);color:var(--bg)}
+.chip[aria-pressed="true"] b{color:inherit}
+.chip.warn{border-color:var(--red);color:var(--red)}
+.chip.warn b{color:inherit}
+.chip.warn[aria-pressed="true"]{background:var(--red);color:var(--bg)}
+
+.note{background:var(--brass-soft);color:var(--ink);border-left:4px solid var(--brass);padding:10px 14px;border-radius:4px;margin:0 0 14px}
+
+.list{list-style:none;margin:0;padding:0;background:var(--surface);border:1px solid var(--line);border-radius:8px;overflow:hidden}
+.row{display:grid;grid-template-columns:minmax(0,1fr) 270px 130px 130px;gap:18px;align-items:center;padding:10px 16px;border-top:1px solid var(--line);cursor:pointer}
+.row:first-child{border-top:0}
+.row:hover{background:var(--raised)}
+.row.sub{padding-left:46px;background-image:linear-gradient(var(--line),var(--line));background-size:2px 100%;background-position:26px 0;background-repeat:no-repeat}
+.files.subs li{grid-template-columns:minmax(0,1fr) auto}
+.row.prow{grid-template-columns:minmax(0,1fr) 170px 70px 110px}
+.prow .btn{justify-self:start}
+.tools select{flex:0 1 215px;width:auto;font-weight:500}
+.raillabel{align-self:center;color:var(--muted);font-size:14.5px;white-space:nowrap}
+.team{background:var(--surface);border:1px solid var(--line);border-radius:8px;margin:0 0 14px;padding:0 16px}
+.team summary{cursor:pointer;padding:12px 0;font:600 18px var(--cond)}
+.team ul{list-style:none;margin:0;padding:0}
+.team li{display:grid;grid-template-columns:32px minmax(0,1fr) 230px;gap:12px;align-items:center;padding:8px 0;border-top:1px solid var(--line)}
+.team img{width:32px;height:32px;border-radius:50%;background:var(--blue-soft)}
+.team select{padding:6px 8px}
+.team .hint{margin:0 0 12px}
+.team li.srow{grid-template-columns:minmax(0,1fr) 200px auto}
+.group{display:flex;align-items:center;gap:12px;padding:9px 16px;background:var(--blue-soft);border-top:1px solid var(--line)}
+.group:first-child{border-top:0}
+.gtoggle{flex:1;display:flex;align-items:baseline;gap:12px;background:none;border:0;padding:5px 0;text-align:left;cursor:pointer;min-width:0}
+.gtoggle::before{content:"";flex:none;width:0;height:0;border:5px solid transparent;border-left:7px solid var(--ink);border-right:0;align-self:center}
+.gtoggle[aria-expanded="true"]::before{transform:rotate(90deg)}
+.gname{font:600 21px/1.2 var(--cond);overflow-wrap:anywhere}
+.gcount{color:var(--muted);font-size:14.5px;white-space:nowrap}
+.gphoto{flex:none;width:44px;height:44px;padding:0;border:0;border-radius:6px;overflow:hidden;background:var(--raised);cursor:pointer}
+.gphoto img{display:block;width:100%;height:100%;object-fit:cover}
+.dphoto{display:block;width:100%;padding:0;border:0;border-radius:8px;overflow:hidden;background:var(--raised);cursor:pointer;margin:0 0 16px}
+.dphoto img{display:block;width:100%;max-height:230px;object-fit:contain}
+.kind{font:500 13.5px var(--font);color:var(--muted);margin-right:8px}
+.open{display:grid;grid-template-columns:112px minmax(0,1fr);column-gap:14px;align-items:baseline;text-align:left;background:none;border:0;padding:4px 0;cursor:pointer;min-width:0}
+.job{font:600 19px/1.2 var(--cond);grid-row:span 2;overflow-wrap:anywhere}
+.part{font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.cust{color:var(--muted);font-size:14.5px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;min-height:1.2em}
+.due{font-size:15px}
+.due.late{color:var(--red);font-weight:600}
+.due.soon{color:var(--brass);font-weight:600}
+.due.none{color:var(--muted)}
+.fcount{color:var(--muted);font-size:14.5px;text-align:right}
+.fcount b{display:block;color:var(--brass);font-weight:600}
+.files.jobs li{grid-template-columns:minmax(0,1fr) 128px auto}
+.jobs select{padding:6px 8px}
+.jobs strong{font-weight:600;overflow-wrap:anywhere}
+.jobs li.got strong{color:var(--muted);font-weight:500}
+.jobs .late{color:var(--red);font-weight:600}
+.parts{list-style:none;margin:12px 0 0;padding:0}
+.partli{padding:12px 0;border-top:1px solid var(--line)}
+.parthead{display:flex;gap:6px 12px;align-items:baseline;flex-wrap:wrap}
+.parthead strong{font:600 18px var(--cond);flex:1 1 140px;overflow-wrap:anywhere}
+.ops{display:flex;flex-wrap:wrap;gap:6px;margin-top:9px}
+.op{border:1px solid var(--line);background:transparent;border-radius:5px;padding:7px 11px;font-size:14.5px;cursor:pointer;color:var(--muted)}
+.op.pending{border-color:var(--brass);background:var(--brass-soft);color:var(--ink);font-weight:600}
+.op.done{border-color:var(--green);color:var(--green);font-weight:600}
+.op.add{border-style:dashed}
+.op:disabled{cursor:default}
+.hint{font-size:13.5px;color:var(--muted);margin:10px 0 0}
+.checks{display:flex;flex-wrap:wrap;gap:8px 18px;margin-top:6px}
+.checks label{display:flex;gap:7px;align-items:center;font-size:15.5px;font-weight:400}
+.checks input{width:auto;margin:0;padding:0}
+
+.track{display:flex;align-items:center;gap:12px;min-width:0}
+.segs{display:flex;gap:3px;flex:1;min-width:0}
+.seg{flex:1;height:28px;background:none;border:0;padding:0;cursor:pointer;display:flex;flex-direction:column;align-items:stretch;justify-content:center;gap:6px;min-width:0}
+.seg::before{content:"";display:block;height:8px;border-radius:2px;background:var(--seg)}
+.seg.on::before{background:var(--blue)}
+.seg.cur::before{height:14px}
+.seg:disabled{cursor:default}
+.seg:not(:disabled):hover::before{outline:2px solid var(--blue);outline-offset:1px}
+.track.done .seg.on::before{background:var(--green)}
+.stagename{font:600 15px var(--cond);width:82px;flex:none}
+.track.big{display:block}
+.track.big .seg{height:auto;justify-content:flex-start;padding:6px 0}
+.track.big .seg::before{height:10px}
+.track.big .seg.cur::before{height:10px;box-shadow:0 0 0 3px var(--blue-soft)}
+.seglabel{font:500 12px/1.2 var(--cond);color:var(--muted);text-align:center;overflow:hidden;text-overflow:ellipsis}
+.seg.cur .seglabel{color:var(--ink);font-weight:600}
+
+.empty{padding:56px 20px;text-align:center;color:var(--muted)}
+.empty p{margin:0 0 14px;font-size:17px}
+
+dialog{border:0;padding:0;background:var(--surface);color:var(--ink)}
+dialog::backdrop{background:rgba(10,16,22,.5)}
+.drawer{margin:0 0 0 auto;height:100%;max-height:100%;width:min(580px,100%);max-width:100%;border-left:1px solid var(--line)}
+.drawer .inner{height:100%;overflow-y:auto;padding:calc(18px + env(safe-area-inset-top,0px)) 22px calc(28px + env(safe-area-inset-bottom,0px))}
+.modal{border-radius:10px;width:min(620px,calc(100% - 24px));max-height:calc(100% - 24px);border:1px solid var(--line)}
+.modal .inner{padding:20px 22px}
+.dhead{display:flex;gap:12px;align-items:flex-start;justify-content:space-between;margin-bottom:14px}
+.dhead h2{margin:0;font:600 26px/1.15 var(--cond);overflow-wrap:anywhere}
+.dhead p{margin:2px 0 0;font-weight:500;overflow-wrap:anywhere}
+h3{font:600 18px var(--cond);margin:26px 0 10px}
+.facts{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px 20px;margin:20px 0 0}
+.facts dt{color:var(--muted);font-size:13.5px}
+.facts dd{margin:0;font-weight:500;overflow-wrap:anywhere}
+.facts a{color:var(--blue)}
+.notes{white-space:pre-wrap;overflow-wrap:anywhere;margin:0}
+.muted{color:var(--muted)}
+
+.drop{display:flex;flex-wrap:wrap;gap:10px 14px;align-items:center;border:1.5px dashed var(--line);border-radius:8px;padding:14px}
+.drop.over{border-color:var(--blue);background:var(--blue-soft)}
+.drop small{color:var(--muted);flex:1 1 220px}
+.upmsg{margin:10px 0 0;font-size:14.5px}
+.upmsg.err{color:var(--red)}
+.files{list-style:none;margin:12px 0 0;padding:0}
+.files li{display:grid;grid-template-columns:44px minmax(0,1fr) auto;gap:12px;align-items:center;padding:9px 0;border-top:1px solid var(--line)}
+.files img,.badge{width:44px;height:44px;border-radius:5px;object-fit:cover;background:var(--blue-soft)}
+.badge{display:grid;place-items:center;font:600 13px var(--cond);color:var(--blue)}
+.flink{background:none;border:0;padding:0;color:var(--blue);font-weight:500;text-align:left;cursor:pointer;text-decoration:underline;text-underline-offset:2px;overflow-wrap:anywhere;display:block}
+.fmeta{color:var(--muted);font-size:13.5px;display:flex;flex-wrap:wrap;gap:0 10px}
+.actions{display:flex;gap:10px;justify-content:space-between;margin-top:30px;padding-top:16px;border-top:1px solid var(--line)}
+
+.grid2{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px 16px}
+.grid2 .full{grid-column:1/-1}
+label{display:block;font-size:14px;font-weight:500}
+label input,label select,label textarea{margin-top:4px;font-weight:400;font-size:16px}
+.formfoot{display:flex;gap:10px;justify-content:flex-end;margin-top:18px}
+#confirm .inner p{margin:6px 0 0;color:var(--muted)}
+#preview{background:#000;max-width:calc(100% - 16px);max-height:calc(100% - 16px);border-radius:8px}
+#preview img,#preview video{display:block;max-width:100%;max-height:calc(100vh - 90px)}
+#preview .btn{position:absolute;top:8px;right:8px}
+
+#toast{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(18px + env(safe-area-inset-bottom,0px));background:var(--ink);color:var(--bg);padding:10px 16px;border-radius:6px;max-width:calc(100% - 32px);z-index:20;font-weight:500}
+
+.team .late{color:var(--red);font-weight:600}
+.gate{max-width:400px;margin:9vh auto 0;padding:0 20px 40px}
+.gate form{display:grid;gap:12px;margin:18px 0;background:var(--surface);border:1px solid var(--line);border-radius:8px;padding:18px}
+.foot{display:flex;flex-wrap:wrap;gap:8px 14px;align-items:center;margin:22px 0 0;color:var(--muted);font-size:14.5px}
+
+@media (max-width:820px){
+  .wrap{padding:16px 14px 80px}
+  .row{grid-template-columns:minmax(0,1fr) auto;gap:8px 14px;padding:12px 14px}
+  .open{grid-column:1/-1;grid-template-columns:auto minmax(0,1fr)}
+  .row .track{grid-column:1/-1}
+  .row.prow{grid-template-columns:minmax(0,1fr) auto}
+  .team li{grid-template-columns:32px minmax(0,1fr)}
+  .team li select{grid-column:1/-1}
+  .team li.srow{grid-template-columns:minmax(0,1fr) auto}
+  .tools{flex-wrap:wrap}
+  .group{flex-wrap:wrap}
+  .gtoggle{flex:1 1 150px}
+  .tools select{flex:1 1 100%}
+  .fcount{text-align:right}
+  .grid2,.facts{grid-template-columns:1fr}
+  .tools{flex-basis:100%}
+  .tools input{max-width:none}
+}
+</style>
+</head>
+<body>
+<section class="gate" id="gate">
+  <h1>Mould CRM</h1>
+  <p class="muted" id="gateMsg">Loading…</p>
+  <form id="loginForm" hidden>
+    <label id="g_nameL" hidden>Your name<input id="g_name" maxlength="80" autocomplete="name"></label>
+    <label>Email<input id="g_email" type="email" required autocomplete="username"></label>
+    <label>Password<input id="g_pw" type="password" required minlength="6" autocomplete="current-password"></label>
+    <p class="upmsg err" id="g_err" hidden></p>
+    <button class="btn primary" type="submit" id="g_btn">Log in</button>
+  </form>
+  <button class="btn" type="button" id="g_out" hidden>Log out</button>
+</section>
+<div class="wrap" id="app" hidden>
+  <header class="top">
+    <h1 id="title">Mould projects</h1>
+    <div class="tools">
+      <select id="viewSel" aria-label="Panel"></select>
+      <input type="search" id="q" placeholder="Search" aria-label="Search">
+      <button class="btn" id="setBtn" type="button" hidden>Settings</button>
+      <button class="btn primary" id="addBtn" type="button" hidden>Add mould</button>
+    </div>
+  </header>
+  <nav class="rail" id="rail" aria-label="Filter by stage"></nav>
+  <p class="note" id="note" hidden></p>
+  <section id="adminBox" hidden></section>
+  <main>
+    <ul class="list" id="list" hidden></ul>
+    <div class="empty" id="empty"><p>Loading projects…</p></div>
+  </main>
+  <p class="foot" id="foot"></p>
+</div>
+
+<dialog id="detail" class="drawer"><div class="inner" id="detailBody"></div></dialog>
+
+<dialog id="formDlg" class="modal">
+  <form class="inner" id="form">
+    <div class="dhead"><h2 id="formTitle">Add mould</h2></div>
+    <div class="grid2">
+      <label>Product name<input id="f_prod" required maxlength="120" list="prodList" placeholder="Switch board"></label>
+      <label>Mould name<input id="f_part" required maxlength="120" placeholder="Housing cover mould"></label>
+      <label class="full">Job no (optional)<input id="f_job" maxlength="40" placeholder="M-1042"></label>
+      <datalist id="prodList"></datalist>
+      <label class="full">Made for<select id="f_for"><option value="Customer">Customer</option><option value="Own">Own purpose</option></select></label>
+      <label id="custL">Customer<input id="f_cust" maxlength="120"></label>
+      <label id="phoneL">Customer phone<input id="f_phone" type="tel" maxlength="30"></label>
+      <label>Mould type<input id="f_type" list="typeList" maxlength="60" placeholder="2-plate"></label>
+      <label>Cavities<input id="f_cav" type="number" min="1" max="512" inputmode="numeric"></label>
+      <label>Mould steel<input id="f_steel" list="steelList" maxlength="60" placeholder="P20"></label>
+      <label>Machine<input id="f_machine" maxlength="60" placeholder="180 ton"></label>
+      <label>Due date<input id="f_due" type="date"></label>
+      <label>Stage<select id="f_stage"></select></label>
+      <label class="full">Notes<textarea id="f_notes" maxlength="4000"></textarea></label>
+    </div>
+    <datalist id="typeList"><option value="2-plate"><option value="3-plate"><option value="Hot runner"><option value="Stack mould"><option value="Insert mould"><option value="Family mould"></datalist>
+    <datalist id="steelList"><option value="P20"><option value="H13"><option value="718"><option value="NAK80"><option value="S136"><option value="2738"><option value="EN31"></datalist>
+    <div class="formfoot">
+      <button class="btn" type="button" id="formCancel">Cancel</button>
+      <button class="btn primary" type="submit" id="formSave">Add mould</button>
+    </div>
+  </form>
+</dialog>
+
+<dialog id="partDlg" class="modal" style="width:min(500px,calc(100% - 24px))">
+  <form class="inner" id="partForm">
+    <div class="dhead"><h2>Add part or punch</h2></div>
+    <div class="grid2">
+      <label>Type<select id="p_kind"><option value="Part">Part</option><option value="Punch">Punch</option></select></label>
+      <label>Name<input id="p_name" required maxlength="80" list="partList" placeholder="Core insert"></label>
+    </div>
+    <datalist id="partList"><option value="Core"><option value="Cavity"><option value="Core insert"><option value="Cavity insert"><option value="Punch"><option value="Slider"><option value="Lifter"><option value="Ejector plate"><option value="Ejector pins"><option value="Sprue bush"><option value="Guide pillar and bush"><option value="Top plate"><option value="Bottom plate"><option value="Mould base"></datalist>
+    <p style="margin:16px 0 0;font-size:14px;font-weight:500">Work to do on it</p>
+    <div class="checks" id="p_checks"></div>
+    <label style="margin-top:14px">Other work, separated by commas<input id="p_other" maxlength="200"></label>
+    <div class="formfoot">
+      <button class="btn" type="button" id="partCancel">Done</button>
+      <button class="btn primary" type="submit" id="partSave">Add</button>
+    </div>
+  </form>
+</dialog>
+
+<dialog id="opDlg" class="modal" style="width:min(400px,calc(100% - 24px))">
+  <form class="inner" id="opForm">
+    <div class="dhead"><h2>Add other work</h2></div>
+    <label>Work name<input id="o_name" required maxlength="30"></label>
+    <div class="formfoot">
+      <button class="btn" type="button" id="opCancel">Cancel</button>
+      <button class="btn primary" type="submit" id="opSave">Add work</button>
+    </div>
+  </form>
+</dialog>
+
+<dialog id="empDlg" class="modal" style="width:min(460px,calc(100% - 24px))">
+  <form class="inner" id="empForm">
+    <div class="dhead"><h2>Add employee</h2></div>
+    <label>Employee name<input id="e_name" required maxlength="80" autocomplete="off"></label>
+    <label style="margin-top:14px">Email<input id="e_mail" type="email" required maxlength="120" autocomplete="off"></label>
+    <label style="margin-top:14px">Password<input id="e_pw" required minlength="6" maxlength="60" autocomplete="off" placeholder="At least 6 letters or numbers"></label>
+    <label style="margin-top:14px">Panel<select id="e_role"></select></label>
+    <p class="upmsg err" id="e_msg" hidden></p>
+    <div class="formfoot">
+      <button class="btn" type="button" id="empCancel">Cancel</button>
+      <button class="btn primary" type="submit" id="empSave">Add employee</button>
+    </div>
+  </form>
+</dialog>
+
+<dialog id="pwDlg" class="modal" style="width:min(400px,calc(100% - 24px))">
+  <form class="inner" id="pwForm">
+    <div class="dhead"><h2 id="pwTitle">Change my password</h2></div>
+    <label>New password<input id="pw_new" required minlength="6" maxlength="60" autocomplete="off" placeholder="At least 6 letters or numbers"></label>
+    <div class="formfoot">
+      <button class="btn" type="button" id="pwCancel">Cancel</button>
+      <button class="btn primary" type="submit" id="pwSave">Save password</button>
+    </div>
+  </form>
+</dialog>
+
+<dialog id="setDlg" class="modal" style="width:min(480px,calc(100% - 24px))">
+  <form class="inner" id="setForm">
+    <div class="dhead"><h2>Dashboard settings</h2></div>
+    <label>Shop name<input id="s_shop" maxlength="60" placeholder="Mould projects"></label>
+    <label style="margin-top:14px">Extra work options, separated by commas<input id="s_extra" maxlength="300" placeholder="Laser marking, Texturing"></label>
+    <label style="margin-top:14px">Mark a mould as due soon when this many days are left<input id="s_soon" type="number" min="1" max="60" inputmode="numeric"></label>
+    <div class="checks" style="flex-direction:column;margin-top:16px">
+      <label><input type="checkbox" id="s_done">Show dispatched moulds in the All list</label>
+      <label><input type="checkbox" id="s_photos">Show product photos on the dashboard</label>
+      <label><input type="checkbox" id="s_cust">Show customer names on the dashboard</label>
+      <label><input type="checkbox" id="s_closed">Start with all products closed</label>
+    </div>
+    <div class="formfoot">
+      <button class="btn" type="button" id="setCancel">Cancel</button>
+      <button class="btn primary" type="submit" id="setSave">Save settings</button>
+    </div>
+  </form>
+</dialog>
+
+<dialog id="jobDlg" class="modal" style="width:min(460px,calc(100% - 24px))">
+  <form class="inner" id="jobForm">
+    <div class="dhead"><h2>Add job work</h2></div>
+    <div class="grid2">
+      <label class="full">Work<input id="j_work" required maxlength="120" list="workList" placeholder="Wire cut punch"></label>
+      <label class="full">Vendor<input id="j_vendor" maxlength="120"></label>
+      <label>Expected back<input id="j_expected" type="date"></label>
+      <label>Status<select id="j_status"></select></label>
+    </div>
+    <datalist id="workList"><option value="Wire cut"><option value="EDM"><option value="CNC machining"><option value="Heat treatment"><option value="Grinding"><option value="Polishing"><option value="Texturing"><option value="Nitriding"></datalist>
+    <div class="formfoot">
+      <button class="btn" type="button" id="jobCancel">Cancel</button>
+      <button class="btn primary" type="submit" id="jobSave">Add job work</button>
+    </div>
+  </form>
+</dialog>
+
+<dialog id="confirm" class="modal" style="width:min(420px,calc(100% - 24px))">
+  <form method="dialog" class="inner">
+    <h2 id="cTitle" style="margin:0;font:600 22px var(--cond)"></h2>
+    <p id="cBody"></p>
+    <div class="formfoot">
+      <button class="btn" value="cancel">Cancel</button>
+      <button class="btn danger" value="ok" id="cOk">Delete</button>
+    </div>
+  </form>
+</dialog>
+
+<dialog id="preview"><button class="btn small" type="button" id="pvClose">Close</button><div id="pvBody"></div></dialog>
+<input type="file" id="photoInput" accept="image/png,image/jpeg,image/webp" hidden>
+<div id="toast" role="status" aria-live="polite" hidden></div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="config.js"></script>
+<script>
+(function(){
+"use strict";
+const STAGES=["Enquiry","Design","Machining","Fitting","Trial","Dispatched"];
+const TYPES={png:"image/png",jpg:"image/jpeg",jpeg:"image/jpeg",gif:"image/gif",webp:"image/webp",svg:"image/svg+xml",mp4:"video/mp4",webm:"video/webm",pdf:"application/pdf",csv:"text/csv",md:"text/markdown",json:"application/json",txt:"text/plain"};
+const MAX=50*1024*1024,BUCKET="mould-files";
+const JOB_STATUS=["To send","At vendor","Received"];
+const BASE_OPS=["EDM design","EDM","Wire cut","Order","VMC","Turning","Milling","Drilling","Grinding","Heat treatment","Polishing","Fitting"];
+let OPS=BASE_OPS.slice();
+const OP_SAY={none:"not needed. Tap to mark it to do",pending:"to do. Tap to mark it done",done:"done. Tap to remove it"};
+const OP_NEXT={none:"pending",pending:"done",done:"none"};
+function buildViews(){return [{key:"admin",hash:"admin",label:"Admin panel, all moulds"},{key:"designer",hash:"designer",label:"Designer panel"}]
+  .concat(["VMC"].concat(OPS.filter(o=>o!=="VMC")).map(o=>({key:"op:"+o,hash:o.toLowerCase().replace(/\s+/g,"-"),label:o==="VMC"?"VMC operator panel":o+" panel"})));}
+let VIEWS=buildViews();
+const $=id=>document.getElementById(id);
+
+let db=null,user=null,assets=null,myId=null,canWrite=true,canManage=false;
+let sb=null,profiles=[],pwFor=null,signupMode=false,entered=false;
+const urls={},urlWait=new Set(),urlBad=new Set();
+const closed=new Set();
+let photos=Object.create(null),photoFor=null;
+let cfg={shop:"",extra:[],showDone:true,showPhotos:true,showCust:true,startClosed:false,soon:7},cfgExists=false;
+let formParent=null,view="admin",roles={},people=[],isOwner=false,teamOpen=false,empPick=null,staff=[],claims={},asked=false,codes={},whoPick=null;
+const seen={};
+let jobs=[],jobPid=null,parts=[],partPid=null,opPartId=null;
+let projects=[],files=[],gotProjects=false,filter="all",query="",openId=null,editId=null;
+let uploading=false,upMsg="",upErr=false;
+const busy={};
+
+function h(tag,props,...kids){
+  const el=document.createElement(tag);
+  if(props)for(const[k,v]of Object.entries(props)){
+    if(v==null||v===false)continue;
+    if(k==="class")el.className=v;
+    else if(k==="text")el.textContent=v;
+    else if(k.startsWith("on"))el.addEventListener(k.slice(2),v);
+    else el.setAttribute(k,v===true?"":v);
+  }
+  for(const kid of kids.flat()){if(kid==null||kid===false)continue;el.append(kid);}
+  return el;
+}
+const str=(v,n)=>(typeof v==="string"||typeof v==="number")?String(v).slice(0,n||200):"";
+
+let toastTimer;
+function toast(msg){const t=$("toast");t.textContent=msg;t.hidden=false;clearTimeout(toastTimer);toastTimer=setTimeout(()=>{t.hidden=true;},6000);}
+function showNote(msg){const n=$("note");if(msg){n.textContent=msg;n.hidden=false;}else n.hidden=true;}
+
+function ask(title,body,action){
+  return new Promise(res=>{
+    const d=$("confirm");$("cTitle").textContent=title;$("cBody").textContent=body;$("cOk").textContent=action;
+    d.returnValue="";d.showModal();
+    d.addEventListener("close",()=>res(d.returnValue==="ok"),{once:true});
+  });
+}
+
+/* ---------- dates and sizes ---------- */
+function parseDue(s){const m=/^(\d{4})-(\d{2})-(\d{2})$/.exec(s||"");return m?new Date(+m[1],+m[2]-1,+m[3]):null;}
+function fmtDate(d){const o={day:"numeric",month:"short"};if(d.getFullYear()!==new Date().getFullYear())o.year="numeric";return d.toLocaleDateString("en-IN",o);}
+function si(p){return Math.max(0,STAGES.indexOf(p.stage));}
+function daysLeft(p){const d=parseDue(p.due);if(!d)return null;const t=new Date();t.setHours(0,0,0,0);return Math.round((d-t)/864e5);}
+function isOverdue(p){const n=daysLeft(p);return n!==null&&n<0&&si(p)<5;}
+function dueInfo(p){
+  const d=parseDue(p.due);if(!d)return{text:"No due date",cls:"none"};
+  const n=daysLeft(p),done=si(p)===5,date=fmtDate(d);
+  if(done)return{text:"Due "+date,cls:"none"};
+  if(n<0)return{text:date+", "+(-n)+(n===-1?" day late":" days late"),cls:"late"};
+  if(n===0)return{text:"Due today",cls:"soon"};
+  if(n<=cfg.soon)return{text:date+", in "+n+(n===1?" day":" days"),cls:"soon"};
+  return{text:"Due "+date,cls:""};
+}
+function fmtSize(b){b=+b||0;return b<1048576?Math.max(1,Math.round(b/1024))+" KB":(b/1048576).toFixed(1)+" MB";}
+
+/* ---------- errors ---------- */
+function writeFailed(e){
+  const c=e&&e.code;
+  if(c==="42501")toast("You don’t have permission for this. Ask your admin.");
+  else toast("Couldn’t save. Check your connection and try again.");
+}
+
+/* ---------- data layer (Supabase) ---------- */
+function uid(){
+  if(crypto.randomUUID)return crypto.randomUUID();
+  const b=crypto.getRandomValues(new Uint8Array(16));b[6]=(b[6]&15)|64;b[8]=(b[8]&63)|128;
+  const x=[...b].map(v=>v.toString(16).padStart(2,"0")).join("");
+  return x.slice(0,8)+"-"+x.slice(8,12)+"-"+x.slice(12,16)+"-"+x.slice(16,20)+"-"+x.slice(20);
+}
+function makeDb(){
+  const subs={};
+  function emit(c){
+    const s=subs[c];if(!s)return;
+    const docs=[...s.rows.entries()].map(([id,data])=>({id:id,data:()=>data}));
+    s.cbs.forEach(f=>f({docs:docs,metadata:{fromCache:false}}));
+  }
+  async function load(c){
+    const rows=new Map();
+    for(let from=0;;from+=1000){
+      const r=await sb.from("items").select("id,data").eq("coll",c).order("id").range(from,from+999);
+      if(r.error)throw r.error;
+      r.data.forEach(x=>rows.set(x.id,x.data||{}));
+      if(r.data.length<1000)break;
+    }
+    if(subs[c]){subs[c].rows=rows;emit(c);}
+  }
+  function local(c,id,data){const s=subs[c];if(!s)return;if(data===null)s.rows.delete(id);else s.rows.set(id,data);emit(c);}
+  function merge(a,p){
+    const o=Object.assign({},a,p);
+    if(p.ops&&typeof p.ops==="object")o.ops=Object.assign({},(a&&a.ops)||{},p.ops);
+    return o;
+  }
+  function ref(c,id){
+    return{id:id,
+      async set(data){const r=await sb.from("items").insert({id:id,coll:c,data:data});if(r.error)throw r.error;local(c,id,data);},
+      async update(patch){
+        const r=await sb.rpc("merge_item",{p_id:id,p_patch:patch});if(r.error)throw r.error;
+        const s=subs[c];if(s&&s.rows.has(id))local(c,id,merge(s.rows.get(id),patch));
+      },
+      async delete(){const r=await sb.from("items").delete().eq("id",id);if(r.error)throw r.error;local(c,id,null);}};
+  }
+  function collection(c){
+    return{doc:id=>ref(c,id||uid()),
+      async add(data){const d=ref(c,uid());await d.set(data);return d;},
+      onSnapshot(next,err){
+        if(!subs[c])subs[c]={rows:new Map(),cbs:[]};
+        subs[c].cbs.push(next);
+        load(c).catch(e=>{if(err)err(e);});
+        return()=>{};
+      }};
+  }
+  function reloadAll(){Object.keys(subs).forEach(c=>load(c).catch(()=>{}));}
+  try{
+    sb.channel("items-live").on("postgres_changes",{event:"*",schema:"public",table:"items"},p=>{
+      if(p.eventType==="DELETE"){const id=p.old&&p.old.id;Object.keys(subs).forEach(c=>{if(subs[c].rows.has(id))local(c,id,null);});}
+      else if(p.new&&subs[p.new.coll])local(p.new.coll,p.new.id,p.new.data||{});
+    }).subscribe();
+  }catch(e){}
+  setInterval(()=>{if(!document.hidden)reloadAll();},60000);
+  document.addEventListener("visibilitychange",()=>{if(!document.hidden)reloadAll();});
+  return{collection:collection,doc:path=>{const i=path.indexOf("/");return ref(path.slice(0,i),path.slice(i+1));}};
+}
+async function ensureUrls(list){
+  const need=list.map(f=>f.path).filter(p=>p&&!urls[p]&&!urlWait.has(p)&&!urlBad.has(p));
+  if(!need.length)return;
+  need.forEach(p=>urlWait.add(p));
+  let data=null;
+  try{const r=await sb.storage.from(BUCKET).createSignedUrls(need,21600);data=r.data;}catch(e){}
+  need.forEach((p,i)=>{urlWait.delete(p);const u=data&&data[i]&&data[i].signedUrl;if(u)urls[p]=u;else urlBad.add(p);});
+  if(openId)renderDetail();
+}
+setInterval(()=>{Object.keys(urls).forEach(k=>delete urls[k]);urlBad.clear();},5*3600*1000);
+
+/* ---------- stage track ---------- */
+async function setStage(p,k){
+  if(busy[p.id])return;busy[p.id]=true;
+  try{await db.doc("projects/"+p.id).update({stage:STAGES[k],updatedAt:Date.now()});}
+  catch(e){writeFailed(e);}
+  busy[p.id]=false;
+}
+function track(p,big){
+  const i=si(p);
+  const segs=h("div",{class:"segs"});
+  STAGES.forEach((s,k)=>{
+    segs.append(h("button",{type:"button",class:"seg"+(k<=i?" on":"")+(k===i?" cur":""),title:s,
+      "aria-label":(k===i?"Current stage: ":"Move to ")+s,"aria-pressed":k===i?"true":"false",disabled:!canWrite,
+      onclick:e=>{e.stopPropagation();if(k!==i)setStage(p,k);}},
+      big?h("span",{class:"seglabel",text:s}):null));
+  });
+  return h("div",{class:"track"+(big?" big":"")+(i===5?" done":""),role:"group","aria-label":"Stage"},segs,
+    big?null:h("span",{class:"stagename",text:STAGES[i]}));
+}
+
+/* ---------- list ---------- */
+function openJobs(){const c={};for(const j of jobs)if(j.status!=="Received")c[j.projectId]=(c[j.projectId]||0)+1;return c;}
+function pendingOps(){const c={};for(const pt of parts){let n=0;for(const k of Object.keys(pt.ops))if(pt.ops[k]==="pending")n++;if(n)c[pt.projectId]=(c[pt.projectId]||0)+n;}return c;}
+function cleanOp(k){k=String(k).replace(/[.\/\\]/g," ").replace(/\s+/g," ").trim().slice(0,30);return(k==="__proto__"||k==="constructor"||k==="prototype")?"":k;}
+function fileCounts(){const c={};for(const f of files)c[f.projectId]=(c[f.projectId]||0)+1;return c;}
+function visible(){
+  const q=query.trim().toLowerCase(),oj=openJobs(),jt={};
+  for(const j of jobs)jt[j.projectId]=(jt[j.projectId]||"")+" "+j.work+" "+j.vendor;
+  for(const pt of parts)jt[pt.projectId]=(jt[pt.projectId]||"")+" "+pt.name+" "+Object.keys(pt.ops).filter(k=>pt.ops[k]==="pending").join(" ");
+  return projects.filter(p=>{
+    if(filter==="overdue"){if(!isOverdue(p))return false;}
+    else if(filter==="jobwork"){if(!oj[p.id])return false;}
+    else if(filter==="all"){if(!cfg.showDone&&!q&&si(p)===5)return false;}
+    else if(STAGES[si(p)]!==filter)return false;
+    return !q||(p.product+" "+p.jobNo+" "+p.part+" "+p.customer+(p.madeFor==="Own"?" own purpose":"")+(jt[p.id]||"")).toLowerCase().includes(q);
+  }).sort((a,b)=>{
+    const da=si(a)===5,dbb=si(b)===5;if(da!==dbb)return da?1:-1;
+    const x=a.due||"9999",y=b.due||"9999";if(x!==y)return x<y?-1:1;
+    return a.jobNo.localeCompare(b.jobNo,undefined,{numeric:true});
+  });
+}
+function chip(key,label,n,warn){
+  return h("button",{type:"button",class:"chip"+(warn?" warn":""),"aria-pressed":filter===key?"true":"false",
+    onclick:()=>{filter=key;render();}},label,h("b",{text:String(n)}));
+}
+function render(){
+  if(locked()&&view!==myRole())view=myRole();
+  $("viewSel").hidden=locked();$("viewSel").value=view;
+  $("addBtn").hidden=!(db&&canWrite)||locked();
+  $("rail").hidden=view!=="admin";
+  $("setBtn").hidden=!(db&&canSet()&&view==="admin");
+  renderAdminBox();
+  if(view!=="admin"){renderPanel();if(openId)renderDetail();return;}
+  const counts={},oj=openJobs(),pw=pendingOps(),jw=projects.filter(p=>oj[p.id]).length;let late=0;
+  for(const p of projects){const s=STAGES[si(p)];counts[s]=(counts[s]||0)+1;if(isOverdue(p))late++;}
+  $("rail").replaceChildren(chip("all","All",projects.length),...STAGES.map(s=>chip(s,s,counts[s]||0)),
+    (jw||filter==="jobwork")?chip("jobwork","Job work pending",jw):"",
+    (late||filter==="overdue")?chip("overdue","Overdue",late,true):"");
+  const list=$("list"),empty=$("empty");
+  if(!gotProjects){list.hidden=true;empty.hidden=false;return;}
+  const rows=visible(),fc=fileCounts();
+  if(!rows.length){
+    list.hidden=true;empty.hidden=false;
+    if(!projects.length)empty.replaceChildren(h("p",{text:canWrite?"No moulds yet. Add your first product and its mould to start tracking.":"No moulds yet."}),
+      canWrite?h("button",{class:"btn primary",type:"button",onclick:()=>openForm(null)},"Add mould"):"");
+    else empty.replaceChildren(h("p",{text:"No moulds match this search or stage."}),
+      h("button",{class:"btn",type:"button",onclick:()=>{filter="all";query="";$("q").value="";render();}},"Show all moulds"));
+  }else{
+    empty.hidden=true;list.hidden=false;
+    const rowEl=(p,sub)=>{
+      const d=dueInfo(p),n=fc[p.id]||0,par=p.parentId?projects.find(x=>x.id===p.parentId):null;
+      return h("li",{class:"row"+(sub?" sub":""),onclick:()=>openDetail(p.id)},
+        h("button",{class:"open",type:"button",onclick:e=>{e.stopPropagation();openDetail(p.id);}},
+          h("span",{class:"job",text:p.jobNo}),
+          h("span",{class:"part",text:p.part||"Untitled mould"}),
+          h("span",{class:"cust",text:par?"Sub mould of "+(par.part||"mould"):(p.madeFor==="Own"?"Own purpose":(cfg.showCust?p.customer:""))})),
+        track(p,false),
+        h("span",{class:"due "+d.cls,text:d.text}),
+        h("span",{class:"fcount"},n===1?"1 file":n+" files",pw[p.id]?h("b",{text:pw[p.id]+" part work pending"}):"",oj[p.id]?h("b",{text:oj[p.id]+" job work pending"}):""));
+    };
+    const groups=new Map();
+    for(const p of rows){const k=p.product;if(!groups.has(k))groups.set(k,[]);groups.get(k).push(p);}
+    const gnames=[...groups.keys()].sort((a,b)=>!a?1:!b?-1:a.localeCompare(b,undefined,{numeric:true}));
+    const out=[];
+    for(const k of gnames){
+      const g=groups.get(k),shut=closed.has(k)!==cfg.startClosed;
+      out.push(h("li",{class:"group"},photoThumb(k),
+        h("button",{class:"gtoggle",type:"button","aria-expanded":shut?"false":"true",onclick:()=>{if(closed.has(k))closed.delete(k);else closed.add(k);render();}},
+          h("span",{class:"gname",text:k||"No product name"}),
+          h("span",{class:"gcount",text:g.length===1?"1 mould":g.length+" moulds"})),
+        (canWrite&&k)?h("button",{class:"btn small",type:"button","aria-label":(photos[k]?"Change photo of ":"Add photo of ")+k,onclick:()=>pickPhoto(k)},photos[k]?"Change photo":"Add photo"):"",
+        (canWrite&&k)?h("button",{class:"btn small",type:"button","aria-label":"Add mould to "+k,onclick:()=>openForm(null,k)},"Add mould"):""));
+      if(!shut){
+        const ids=new Set(g.map(x=>x.id));
+        for(const p of g){
+          if(p.parentId&&ids.has(p.parentId))continue;
+          out.push(rowEl(p,false));
+          for(const c of g)if(c.parentId===p.id)out.push(rowEl(c,true));
+        }
+      }
+    }
+    list.replaceChildren(...out);
+  }
+  if(openId)renderDetail();
+}
+
+/* ---------- admin: employees and panels ---------- */
+function myRole(){const p=profiles.find(x=>x.id===myId);return(p&&p.role)||"";}
+function isAdmin(){return myRole()==="admin";}
+function locked(){return myRole()!=="admin";}
+function goView(k){applyView(k);try{location.hash=VIEWS.find(v=>v.key===view).hash;}catch(e){}render();}
+async function loadProfiles(){
+  const r=await sb.from("profiles").select("id,name,email,role");
+  if(r.error)return false;
+  profiles=r.data.map(p=>({id:p.id,name:str(p.name,80),email:str(p.email,120),role:okRole(p.role||"")?p.role:""}));
+  return true;
+}
+async function setRole(p,val){
+  const r=await sb.from("profiles").update({role:val||null}).eq("id",p.id);
+  toast(r.error?"Couldn’t save the panel. Only an admin can set panels.":"Panel saved");
+  await loadProfiles();render();
+}
+function openEmp(){
+  $("e_name").value="";$("e_mail").value="";$("e_pw").value="";$("e_msg").hidden=true;
+  $("empDlg").showModal();
+}
+async function saveEmp(e){
+  e.preventDefault();
+  const name=$("e_name").value.trim(),email=$("e_mail").value.trim(),pw=$("e_pw").value,role=$("e_role").value;
+  const msg=$("e_msg"),btn=$("empSave"),cfg=window.MOULD_CRM_CONFIG;
+  const fail=t=>{msg.textContent=t;msg.hidden=false;btn.disabled=false;};
+  msg.hidden=true;btn.disabled=true;
+  let r;
+  try{
+    const tmp=window.supabase.createClient(cfg.url,cfg.key,{auth:{persistSession:false,autoRefreshToken:false,detectSessionInUrl:false,storageKey:"mould-crm-new-user"}});
+    r=await tmp.auth.signUp({email:email,password:pw,options:{data:{name:name}}});
+  }catch(err){fail("Couldn’t create the account. Check your connection and try again.");return;}
+  const u=r.data&&r.data.user;
+  if(r.error){fail(/registered|exists/i.test(r.error.message)?"This email already has an account. Find it in the employee list and set its panel.":"Couldn’t create the account: "+r.error.message);return;}
+  if(!u||(u.identities&&!u.identities.length)){fail("This email already has an account. Find it in the employee list and set its panel.");return;}
+  const up=await sb.from("profiles").update({name:name,role:role}).eq("id",u.id);
+  if(up.error){fail("The account was created, but the panel couldn’t be saved. Set it from the employee list.");await loadProfiles();render();return;}
+  btn.disabled=false;$("empDlg").close();
+  toast(r.data.session?"Employee added":"Employee added. Supabase sent a confirmation email, because “Confirm email” is still on.");
+  await loadProfiles();render();
+}
+function openPw(p){
+  pwFor=p||null;
+  $("pwTitle").textContent=p?"Set password for "+(p.name||p.email):"Change my password";
+  $("pw_new").value="";$("pwDlg").showModal();
+}
+async function savePw(e){
+  e.preventDefault();
+  const v=$("pw_new").value,btn=$("pwSave");
+  btn.disabled=true;
+  const r=pwFor?await sb.rpc("admin_set_password",{p_user:pwFor.id,p_password:v}):await sb.auth.updateUser({password:v});
+  btn.disabled=false;
+  if(r.error){toast("Couldn’t change the password. "+r.error.message);return;}
+  $("pwDlg").close();toast("Password changed");
+}
+function teamBlock(){
+  const others=profiles.filter(p=>p.id!==myId).sort((a,b)=>(a.name||a.email).localeCompare(b.name||b.email));
+  return h("details",{class:"team",open:teamOpen,ontoggle:e=>{teamOpen=e.target.open;}},
+    h("summary",{text:"Employees and panels ("+others.length+")"}),
+    h("p",{class:"hint",text:"Add each employee with an email, a password and a panel. The employee logs in with that email and password and sees only that panel. Admin sees everything."}),
+    h("button",{class:"btn",type:"button",style:"margin-bottom:12px",onclick:openEmp},"Add employee"),
+    others.length?h("ul",null,others.map(p=>h("li",{class:"srow"},
+      h("div",null,h("strong",{text:p.name||"No name"}),h("span",{class:"fmeta"},h("span",{text:p.email}),p.role?"":h("span",{class:"late",text:"No access"}))),
+      h("select",{"aria-label":"Panel for "+(p.name||p.email),onchange:e=>setRole(p,e.target.value)},
+        h("option",{value:"",text:"No access",selected:!p.role}),
+        VIEWS.map(v=>h("option",{value:v.key,text:v.key==="admin"?"Admin":v.label,selected:p.role===v.key}))),
+      h("button",{class:"btn small",type:"button","aria-label":"Set password for "+(p.name||p.email),onclick:()=>openPw(p)},"Set password")))):"");
+}
+function renderAdminBox(){
+  const box=$("adminBox");
+  if(view!=="admin"||!gotProjects){box.hidden=true;return;}
+  const cnt={},kids=[];
+  for(const pt of parts)for(const k of Object.keys(pt.ops))if(pt.ops[k]==="pending")cnt[k]=(cnt[k]||0)+1;
+  const pend=VIEWS.filter(v=>v.key.indexOf("op:")===0&&cnt[v.key.slice(3)]);
+  if(pend.length)kids.push(h("div",{class:"rail",style:"padding:0 0 14px"},h("span",{class:"raillabel",text:"Pending work"}),
+    pend.map(v=>h("button",{class:"chip",type:"button","aria-label":"Open "+v.label,onclick:()=>goView(v.key)},v.key.slice(3),h("b",{text:String(cnt[v.key.slice(3)])})))));
+  if(isAdmin())kids.push(teamBlock());
+  box.hidden=!kids.length;box.replaceChildren(...kids);
+}
+
+/* ---------- designer and operator panels ---------- */
+function renderPanel(){
+  const list=$("list"),empty=$("empty");
+  if(!gotProjects){list.hidden=true;empty.hidden=false;return;}
+  const q=query.trim().toLowerCase(),byId={},fc=fileCounts();
+  for(const p of projects)byId[p.id]=p;
+  const due=(a,b)=>{const x=a.due||"9999",y=b.due||"9999";return x<y?-1:x>y?1:0;};
+  const label=(VIEWS.find(v=>v.key===view)||{label:view.replace(/^op:/,"")+" panel"}).label;
+  let rows=[],none="",unit="";
+  if(view==="designer"){
+    none="No moulds are in the Design stage.";unit="in design";
+    rows=projects.filter(p=>STAGES[si(p)]==="Design"&&(!q||(p.product+" "+p.part+" "+p.jobNo+" "+p.customer).toLowerCase().includes(q))).sort(due).map(p=>{
+      const d=dueInfo(p),n=fc[p.id]||0;
+      return h("li",{class:"row prow",onclick:()=>openDetail(p.id)},
+        h("button",{class:"open",type:"button",onclick:e=>{e.stopPropagation();openDetail(p.id);}},
+          h("span",{class:"job",text:p.jobNo}),h("span",{class:"part",text:p.part||"Untitled mould"}),h("span",{class:"cust",text:p.product})),
+        h("span",{class:"due "+d.cls,text:d.text}),
+        h("span",{class:"fcount",text:n===1?"1 file":n+" files"}),
+        canWrite?h("button",{class:"btn small primary",type:"button","aria-label":"Design done for "+p.part,
+          onclick:async e=>{e.stopPropagation();await setStage(p,2);toast("Design done. Mould moved to Machining.");}},"Design done"):"");
+    });
+  }else{
+    const op=view.slice(3);
+    none="No pending "+op+" work.";unit="pending";
+    rows=parts.filter(pt=>pt.ops[op]==="pending"&&byId[pt.projectId]).map(pt=>({pt:pt,p:byId[pt.projectId]}))
+      .filter(x=>!q||(x.pt.name+" "+x.pt.kind+" "+x.p.product+" "+x.p.part+" "+x.p.jobNo).toLowerCase().includes(q))
+      .sort((a,b)=>due(a.p,b.p)).map(x=>{
+        const pt=x.pt,p=x.p,d=dueInfo(p);
+        return h("li",{class:"row prow",onclick:()=>openDetail(p.id)},
+          h("button",{class:"open",type:"button",onclick:e=>{e.stopPropagation();openDetail(p.id);}},
+            h("span",{class:"job",text:pt.kind}),h("span",{class:"part",text:pt.name}),
+            h("span",{class:"cust",text:[p.product,p.part].filter(Boolean).join(", ")})),
+          h("span",{class:"due "+d.cls,text:d.text}),
+          h("span",{class:"fcount",text:""}),
+          canWrite?h("button",{class:"btn small primary",type:"button","aria-label":"Mark "+op+" done for "+pt.name,
+            onclick:async e=>{e.stopPropagation();await setOp(pt,op,"done");toast(op+" done for "+pt.name);}},"Mark done"):"");
+      });
+  }
+  if(!rows.length){list.hidden=true;empty.hidden=false;empty.replaceChildren(h("p",{text:q?"Nothing matches this search.":none}));return;}
+  empty.hidden=true;list.hidden=false;
+  list.replaceChildren(h("li",{class:"group"},h("span",{class:"gname",text:label}),h("span",{class:"gcount",text:rows.length+" "+unit})),...rows);
+}
+
+/* ---------- detail drawer ---------- */
+function openDetail(id){openId=id;upMsg="";upErr=false;renderDetail();$("detailBody").scrollTop=0;const d=$("detail");if(!d.open)d.showModal();}
+function fact(label,value){return value?[h("div",null,h("dt",{text:label}),h("dd",null,value))]:[];}
+function badge(f){const ext=(f.name.split(".").pop()||"file").slice(0,4).toUpperCase();return h("span",{class:"badge",text:ext,"aria-hidden":"true"});}
+function fileRow(f){
+  const url=urls[f.path]||"",isImg=/^image\//.test(f.type),isVid=/^video\//.test(f.type);
+  const thumb=(isImg&&url)?h("img",{src:url,alt:"",loading:"lazy",onerror:e=>{e.target.replaceWith(badge(f));}}):badge(f);
+  const name=!url?h("button",{class:"flink",type:"button",text:f.name,onclick:()=>toast(urlBad.has(f.path)?"This file couldn’t be loaded. Reload the page and try again.":"The file is still loading. Tap again in a moment.")})
+    :(isImg||isVid)?h("button",{class:"flink",type:"button",text:f.name,onclick:()=>openPreview(f,url,isVid)})
+    :h("a",{class:"flink",href:url,target:"_blank",rel:"noopener",text:f.name});
+  const mine=myId&&f.by===myId;
+  return h("li",null,thumb,
+    h("div",null,name,h("span",{class:"fmeta"},h("span",{text:fmtSize(f.size)}),h("span",{text:f.at?fmtDate(new Date(f.at)):""}),
+      f.by?h("span",null,"by ",h("span",{"data-uid":f.by,text:"…"})):"")),
+    (canManage||mine)?h("button",{class:"btn small danger",type:"button","aria-label":"Delete "+f.name,onclick:()=>deleteFile(f)},"Delete"):"");
+}
+function renderDetail(){
+  const p=projects.find(x=>x.id===openId),dlg=$("detail"),body=$("detailBody");
+  if(!p){if(dlg.open)dlg.close();openId=null;return;}
+  const top=body.scrollTop,d=dueInfo(p);
+  const mine=files.filter(f=>f.projectId===p.id).sort((a,b)=>b.at-a.at);
+  ensureUrls(mine);
+  const pj=jobs.filter(j=>j.projectId===p.id).sort((a,b)=>a.at-b.at);
+  const pp=parts.filter(x=>x.projectId===p.id).sort((a,b)=>a.at-b.at);
+  const par=p.parentId?projects.find(x=>x.id===p.parentId):null,subs=projects.filter(x=>x.parentId===p.id);
+  const phoneHref="tel:"+p.phone.replace(/[^\d+]/g,"");
+  const fileInput=h("input",{type:"file",multiple:true,hidden:true,
+    onchange:e=>{uploadFiles(p.id,e.target.files);e.target.value="";}});
+  const drop=h("div",{class:"drop",
+    ondragover:e=>{e.preventDefault();drop.classList.add("over");},
+    ondragleave:()=>drop.classList.remove("over"),
+    ondrop:e=>{e.preventDefault();drop.classList.remove("over");if(e.dataTransfer&&e.dataTransfer.files.length)uploadFiles(p.id,e.dataTransfer.files);}},
+    h("button",{class:"btn primary",type:"button",disabled:uploading,onclick:()=>fileInput.click()},"Upload files"),fileInput,
+    h("small",{text:"Drawings, CAD files, photos, videos and Excel sheets, up to 50 MB each. You can also drop files here."}));
+  body.replaceChildren(
+    h("div",{class:"dhead"},
+      h("div",null,h("h2",{text:p.part||"Untitled mould"}),h("p",{text:[p.product,p.jobNo].filter(Boolean).join(", ")})),
+      h("button",{class:"btn small",type:"button",onclick:()=>dlg.close()},"Close")),
+    detailPhoto(p),
+    track(p,true),
+    h("dl",{class:"facts"},
+      fact("Made for",p.madeFor==="Own"?"Own purpose":"Customer"),
+      fact("Customer",p.customer),
+      fact("Customer phone",p.phone?h("a",{href:phoneHref,text:p.phone}):null),
+      fact("Mould type",p.mouldType),fact("Cavities",p.cavities),fact("Mould steel",p.steel),fact("Machine",p.machine),
+      fact("Due date",h("span",{class:"due "+d.cls,text:d.text})),
+      fact("Added by",p.createdBy?h("span",{"data-uid":p.createdBy,text:"…"}):null)),
+    p.notes?[h("h3",{text:"Notes"}),h("p",{class:"notes",text:p.notes})]:[],
+    par?h("p",{class:"hint"},"Sub mould of ",h("button",{class:"flink",style:"display:inline",type:"button",text:par.part||"mould",onclick:()=>openDetail(par.id)})):"",
+    !p.parentId?[h("h3",{text:"Sub moulds ("+subs.length+")"}),
+      canWrite?h("button",{class:"btn",type:"button",onclick:()=>openForm(null,p.product,p)},"Add sub mould"):"",
+      subs.length?h("ul",{class:"files subs"},subs.map(c=>h("li",null,
+        h("button",{class:"flink",type:"button",text:c.part||"Untitled mould",onclick:()=>openDetail(c.id)}),
+        h("span",{class:"fmeta",text:STAGES[si(c)]})))):h("p",{class:"muted",text:"No sub moulds in this mould."})]:[],
+    h("h3",{text:"Parts and punches ("+pp.length+")"}),
+    canWrite?h("button",{class:"btn",type:"button",onclick:()=>openPart(p.id)},"Add part or punch"):"",
+    pp.length?[canWrite?h("p",{class:"hint",text:"Tap a work once to mark it to do, again when it is done, and a third time to remove it."}):"",
+      h("ul",{class:"parts"},pp.map(partBlock))]:h("p",{class:"muted",text:"No parts or punches added for this mould yet."}),
+    h("h3",{text:"Outside job work ("+pj.length+")"}),
+    canWrite?h("button",{class:"btn",type:"button",onclick:()=>openJob(p.id)},"Add job work"):"",
+    pj.length?h("ul",{class:"files jobs"},pj.map(jobRow)):h("p",{class:"muted",text:"Nothing is sent outside for this project."}),
+    h("h3",{text:"Files ("+mine.length+")"}),
+    canWrite?(assets?drop:h("p",{class:"muted",text:"Your access level can’t upload files. Ask the owner to make you a Contributor or Editor."})):"",
+    upMsg?h("p",{class:"upmsg"+(upErr?" err":""),text:upMsg}):"",
+    mine.length?h("ul",{class:"files"},mine.map(fileRow)):h("p",{class:"muted",text:"No files uploaded for this project yet."}),
+    canWrite?h("div",{class:"actions"},
+      isAdmin()?h("button",{class:"btn danger",type:"button",onclick:()=>deleteProject(p)},"Delete mould"):h("span"),
+      h("button",{class:"btn",type:"button",onclick:()=>openForm(p)},"Edit details")):"");
+  body.scrollTop=top;
+  resolveNames(body);
+}
+async function resolveNames(root){
+  if(!user)return;
+  const els=[...root.querySelectorAll("[data-uid]")],ids=[...new Set(els.map(e=>e.dataset.uid))];
+  if(!ids.length)return;
+  const ps=await user.profiles(ids);
+  els.forEach(e=>{const p=ps[e.dataset.uid];e.textContent=p?(p.isMe?"you":(p.name||"Someone")):"Someone";});
+}
+function openPreview(f,url,isVid){
+  const el=isVid?h("video",{src:url,controls:true,playsinline:true}):h("img",{src:url,alt:f.name});
+  $("pvBody").replaceChildren(el);$("preview").showModal();
+}
+
+/* ---------- dashboard settings ---------- */
+const SET_ID="00000000-0000-4000-8000-000000000001";
+function okRole(r){return r==="admin"||r==="designer"||/^op:[^.\/\\]{1,30}$/.test(r);}
+function canSet(){return isAdmin();}
+function fillLists(){
+  const vs=$("viewSel"),er=$("e_role"),keep=er.value||"designer";
+  vs.replaceChildren(...VIEWS.map(v=>h("option",{value:v.key,text:v.label})));vs.value=view;
+  er.replaceChildren(...VIEWS.map(v=>h("option",{value:v.key,text:v.key==="admin"?"Admin":v.label})));
+  er.value=VIEWS.some(v=>v.key===keep)?keep:"designer";
+  $("p_checks").replaceChildren(...OPS.map(k=>h("label",null,h("input",{type:"checkbox",value:k}),k)));
+}
+function applySettings(x){
+  x=x||{};
+  const extra=(Array.isArray(x.extra)?x.extra:[]).map(cleanOp).filter(k=>k&&!BASE_OPS.includes(k)).slice(0,10);
+  cfg={shop:str(x.shop,60),extra:[...new Set(extra)],showDone:x.showDone!==false,showPhotos:x.showPhotos!==false,
+    showCust:x.showCust!==false,startClosed:x.startClosed===true,soon:Math.min(60,Math.max(1,Math.round(+x.soon)||7))};
+  OPS=BASE_OPS.concat(cfg.extra);VIEWS=buildViews();
+  if(!VIEWS.some(v=>v.key===view)&&!locked())view="admin";
+  fillLists();
+  $("title").textContent=cfg.shop||"Mould projects";document.title=cfg.shop||"Mould CRM";
+}
+function openSettings(){
+  $("s_shop").value=cfg.shop;$("s_extra").value=cfg.extra.join(", ");$("s_soon").value=cfg.soon;
+  $("s_done").checked=cfg.showDone;$("s_photos").checked=cfg.showPhotos;$("s_cust").checked=cfg.showCust;$("s_closed").checked=cfg.startClosed;
+  $("setDlg").showModal();
+}
+async function saveSettings(e){
+  e.preventDefault();
+  const data={shop:$("s_shop").value.trim(),extra:$("s_extra").value.split(",").map(cleanOp).filter(Boolean).slice(0,10),
+    soon:Math.min(60,Math.max(1,Math.round(+$("s_soon").value)||7)),showDone:$("s_done").checked,showPhotos:$("s_photos").checked,
+    showCust:$("s_cust").checked,startClosed:$("s_closed").checked,at:Date.now()};
+  const btn=$("setSave"),ref=db.doc("settings/"+SET_ID);btn.disabled=true;
+  try{
+    if(cfgExists)await ref.update(data);else await ref.set(data);
+    $("setDlg").close();toast("Settings saved");
+  }catch(err){toast("Couldn\u2019t save the settings. Only the admin can change them.");}
+  btn.disabled=false;
+}
+
+/* ---------- product photos ---------- */
+function photoUrl(ph){return ph?(urls[ph.path]||""):"";}
+function photoThumb(k){
+  if(!cfg.showPhotos)return null;
+  const url=photoUrl(k?photos[k]:null);if(!url)return null;
+  return h("button",{class:"gphoto",type:"button","aria-label":"Open photo of "+k,onclick:()=>openPreview({name:k},url,false)},
+    h("img",{src:url,alt:"",loading:"lazy",onerror:e=>{e.target.parentNode.hidden=true;}}));
+}
+function detailPhoto(p){
+  const url=photoUrl(p.product?photos[p.product]:null);if(!url)return null;
+  return h("button",{class:"dphoto",type:"button","aria-label":"Open product photo",onclick:()=>openPreview({name:p.product},url,false)},
+    h("img",{src:url,alt:"Photo of "+p.product,onerror:e=>{e.target.parentNode.hidden=true;}}));
+}
+function pickPhoto(k){photoFor=k;$("photoInput").click();}
+async function shrink(file){
+  try{
+    const bmp=await createImageBitmap(file),m=Math.min(1,1400/Math.max(bmp.width,bmp.height));
+    const c=document.createElement("canvas");c.width=Math.round(bmp.width*m);c.height=Math.round(bmp.height*m);
+    const g=c.getContext("2d");g.fillStyle="#fff";g.fillRect(0,0,c.width,c.height);g.drawImage(bmp,0,0,c.width,c.height);
+    const b=await new Promise(r=>c.toBlob(r,"image/jpeg",0.85));
+    return b||file;
+  }catch(e){return file;}
+}
+async function uploadPhoto(file){
+  const k=photoFor;photoFor=null;
+  if(!file||!k||!db)return;
+  const blob=await shrink(file),jpg=blob!==file,type=jpg?"image/jpeg":file.type;
+  if(!/^image\/(png|jpeg|webp)$/.test(type||"")){toast("Use a JPG, PNG or WebP photo.");return;}
+  const path="products/"+uid()+"."+(jpg?"jpg":type.split("/")[1]);
+  toast("Uploading photo…");
+  let r;
+  try{r=await sb.storage.from(BUCKET).upload(path,blob,{contentType:type,upsert:false});}catch(e){r={error:e};}
+  if(r.error){toast("Photo not saved. Try again.");return;}
+  try{
+    const old=photos[k];
+    if(old){
+      await db.doc("productphotos/"+old.id).update({path:path,by:myId||"",at:Date.now()});
+      try{await sb.storage.from(BUCKET).remove([old.path]);}catch(e){}
+    }else await db.collection("productphotos").add({product:k,path:path,by:myId||"",at:Date.now()});
+    toast("Photo saved");
+  }catch(e){writeFailed(e);}
+}
+
+/* ---------- uploads ---------- */
+async function uploadFiles(pid,list){
+  if(uploading||!db)return;
+  const arr=[...list],failed=[];let done=0;
+  uploading=true;upErr=false;
+  for(let n=0;n<arr.length;n++){
+    const file=arr[n];
+    if(!file.size){failed.push(file.name+" (the file is empty)");continue;}
+    if(file.size>MAX){failed.push(file.name+" (larger than the 50 MB limit)");continue;}
+    upMsg="Uploading "+(n+1)+" of "+arr.length+": "+file.name;if(openId===pid)renderDetail();
+    const ext=((/\.([A-Za-z0-9]{1,8})$/.exec(file.name)||[])[1]||"bin").toLowerCase();
+    const path=pid+"/"+uid()+"."+ext,type=file.type||"application/octet-stream";
+    let r;
+    try{r=await sb.storage.from(BUCKET).upload(path,file,{contentType:type,upsert:false});}catch(e){r={error:e};}
+    if(r.error){failed.push(file.name+" (upload failed, try again)");continue;}
+    try{
+      await db.collection("files").add({projectId:pid,path:path,name:file.name.slice(0,200),size:file.size,type:type,by:myId||"",at:Date.now()});
+      done++;
+    }catch(e){failed.push(file.name+" (couldn’t save, try again)");}
+  }
+  uploading=false;
+  if(failed.length){upErr=true;upMsg="Not uploaded: "+failed.join("; ")+".";}else upMsg="";
+  if(done)toast(done===1?"1 file uploaded":done+" files uploaded");
+  if(openId===pid)renderDetail();
+}
+async function deleteFile(f){
+  if(!await ask("Delete “"+f.name+"”?","The file is removed for everyone. This can’t be undone.","Delete file"))return;
+  const r=await sb.storage.from(BUCKET).remove([f.path]);
+  if(r.error){toast("Couldn’t delete the file. Try again.");return;}
+  try{await db.doc("files/"+f.id).delete();toast("File deleted");}
+  catch(e){writeFailed(e);}
+}
+async function deleteProject(p){
+  if(projects.some(x=>x.parentId===p.id)){toast("This mould has sub moulds. Delete the sub moulds first.");return;}
+  const fs=files.filter(f=>f.projectId===p.id);
+  if(!await ask("Delete "+(p.part||"this mould")+"?",fs.length?"This also deletes its "+(fs.length===1?"1 file":fs.length+" files")+". This can’t be undone.":"This can’t be undone.","Delete mould"))return;
+  try{
+    if(fs.length){const r=await sb.storage.from(BUCKET).remove(fs.map(f=>f.path));if(r.error)throw r.error;}
+    for(const f of fs)await db.doc("files/"+f.id).delete();
+    for(const j of jobs.filter(x=>x.projectId===p.id))await db.doc("jobwork/"+j.id).delete();
+    for(const pt of parts.filter(x=>x.projectId===p.id))await db.doc("parts/"+pt.id).delete();
+    await db.doc("projects/"+p.id).delete();$("detail").close();toast("Mould deleted");
+  }catch(e){writeFailed(e);}
+}
+
+/* ---------- mould parts ---------- */
+function partBlock(pt){
+  const names=[...OPS,...Object.keys(pt.ops).filter(k=>!OPS.includes(k))];
+  let need=0,done=0;
+  for(const k of Object.keys(pt.ops)){need++;if(pt.ops[k]==="done")done++;}
+  return h("li",{class:"partli"},
+    h("div",{class:"parthead"},h("strong",null,h("span",{class:"kind",text:pt.kind}),pt.name),
+      h("span",{class:"fmeta",text:need?done+" of "+need+" done":"No work marked"}),
+      (canWrite&&!locked())?h("button",{class:"btn small danger",type:"button","aria-label":"Delete part "+pt.name,onclick:()=>deletePart(pt)},"Delete"):""),
+    h("div",{class:"ops"},names.map(k=>{
+      const s=pt.ops[k]||"none";
+      return h("button",{type:"button",class:"op "+s,disabled:!canWrite,"aria-label":k+": "+OP_SAY[s],onclick:()=>setOp(pt,k,OP_NEXT[s])},(s==="done"?"✓ ":"")+k);
+    }),canWrite?h("button",{type:"button",class:"op add",onclick:()=>openOp(pt)},"Other work"):""));
+}
+async function setOp(pt,k,next){
+  if(busy[pt.id])return;busy[pt.id]=true;
+  const ops={};ops[k]=next;
+  try{await db.doc("parts/"+pt.id).update({ops:ops,updatedAt:Date.now()});}
+  catch(e){writeFailed(e);}
+  busy[pt.id]=false;
+}
+async function deletePart(pt){
+  if(!await ask("Delete part “"+pt.name+"”?","The part and its work list are removed for everyone.","Delete part"))return;
+  try{await db.doc("parts/"+pt.id).delete();toast("Part deleted");}
+  catch(e){writeFailed(e);}
+}
+function openPart(pid){
+  partPid=pid;$("p_name").value="";$("p_other").value="";
+  $("p_checks").querySelectorAll("input").forEach(c=>{c.checked=false;});
+  $("partDlg").showModal();
+}
+async function savePart(e){
+  e.preventDefault();
+  if(!partPid)return;
+  const ops={};
+  $("p_checks").querySelectorAll("input:checked").forEach(c=>{ops[c.value]="pending";});
+  $("p_other").value.split(",").map(cleanOp).filter(Boolean).slice(0,10).forEach(k=>{ops[k]="pending";});
+  const btn=$("partSave");btn.disabled=true;
+  try{
+    await db.collection("parts").add({projectId:partPid,kind:$("p_kind").value==="Punch"?"Punch":"Part",name:$("p_name").value.trim(),ops:ops,by:myId||"",at:Date.now()});
+    toast("Added. Add the next one or tap Done.");
+    $("p_name").value="";$("p_name").focus();
+  }catch(err){writeFailed(err);}
+  btn.disabled=false;
+}
+function openOp(pt){opPartId=pt.id;$("o_name").value="";$("opDlg").showModal();}
+async function saveOp(e){
+  e.preventDefault();
+  const k=cleanOp($("o_name").value),pt=parts.find(x=>x.id===opPartId);
+  if(!k||!pt){$("opDlg").close();return;}
+  await setOp(pt,k,"pending");
+  $("opDlg").close();
+}
+
+/* ---------- outside job work ---------- */
+function jobRow(j){
+  const d=parseDue(j.expected),t=new Date();t.setHours(0,0,0,0);
+  const late=d&&j.status!=="Received"&&d<t;
+  const sel=h("select",{"aria-label":"Status of "+j.work,disabled:!canWrite,onchange:e=>setJobStatus(j,e.target.value)},
+    JOB_STATUS.map(s=>h("option",{value:s,text:s,selected:s===j.status})));
+  return h("li",{class:j.status==="Received"?"got":""},
+    h("div",null,h("strong",{text:j.work}),h("span",{class:"fmeta"},j.vendor?h("span",{text:j.vendor}):"",
+      d?h("span",{class:late?"late":"",text:(late?"Was due back ":"Back by ")+fmtDate(d)}):"")),
+    sel,
+    canWrite?h("button",{class:"btn small danger",type:"button","aria-label":"Delete "+j.work,onclick:()=>deleteJob(j)},"Delete"):"");
+}
+async function setJobStatus(j,s){
+  if(busy[j.id]||!JOB_STATUS.includes(s))return;busy[j.id]=true;
+  try{await db.doc("jobwork/"+j.id).update({status:s,updatedAt:Date.now()});}
+  catch(e){writeFailed(e);}
+  busy[j.id]=false;
+}
+async function deleteJob(j){
+  if(!await ask("Delete “"+j.work+"”?","This job work entry is removed for everyone.","Delete job work"))return;
+  try{await db.doc("jobwork/"+j.id).delete();toast("Job work deleted");}
+  catch(e){writeFailed(e);}
+}
+function openJob(pid){
+  jobPid=pid;$("j_work").value="";$("j_vendor").value="";$("j_expected").value="";$("j_status").value=JOB_STATUS[0];
+  $("jobDlg").showModal();
+}
+async function saveJob(e){
+  e.preventDefault();
+  if(!jobPid)return;
+  const btn=$("jobSave");btn.disabled=true;
+  try{
+    await db.collection("jobwork").add({projectId:jobPid,work:$("j_work").value.trim(),vendor:$("j_vendor").value.trim(),
+      expected:$("j_expected").value,status:$("j_status").value,by:myId||"",at:Date.now()});
+    toast("Job work added");$("jobDlg").close();
+  }catch(err){writeFailed(err);}
+  btn.disabled=false;
+}
+
+/* ---------- add / edit form ---------- */
+function openForm(p,prod,parent){
+  formParent=(!p&&parent)?parent:null;
+  editId=p?p.id:null;
+  $("formTitle").textContent=p?"Edit details":(formParent?"Add sub mould":"Add mould");
+  $("formSave").textContent=p?"Save changes":(formParent?"Add sub mould":"Add mould");
+  $("f_prod").value=p?p.product:(prod||"");
+  $("f_for").value=((p||formParent)&&(p||formParent).madeFor==="Own")?"Own":"Customer";toggleFor();
+  $("prodList").replaceChildren(...[...new Set(projects.map(x=>x.product).filter(Boolean))].sort().map(n=>h("option",{value:n})));
+  $("f_job").value=p?p.jobNo:"";$("f_part").value=p?p.part:"";$("f_cust").value=p?p.customer:(formParent?formParent.customer:"");
+  $("f_phone").value=p?p.phone:(formParent?formParent.phone:"");$("f_type").value=p?p.mouldType:"";$("f_cav").value=p?p.cavities:"";
+  $("f_steel").value=p?p.steel:"";$("f_machine").value=p?p.machine:"";$("f_due").value=p?p.due:"";
+  $("f_notes").value=p?p.notes:"";$("f_stage").value=p?STAGES[si(p)]:STAGES[0];
+  $("formDlg").showModal();
+}
+async function saveForm(e){
+  e.preventDefault();
+  const v=id=>$(id).value.trim();
+  const own=$("f_for").value==="Own";
+  const data={product:v("f_prod"),jobNo:v("f_job"),part:v("f_part"),madeFor:own?"Own":"Customer",customer:own?"":v("f_cust"),phone:own?"":v("f_phone"),mouldType:v("f_type"),
+    cavities:v("f_cav"),steel:v("f_steel"),machine:v("f_machine"),due:v("f_due"),notes:v("f_notes"),
+    stage:$("f_stage").value,updatedAt:Date.now()};
+  const btn=$("formSave");btn.disabled=true;
+  try{
+    if(editId){await db.doc("projects/"+editId).update(data);toast("Changes saved");}
+    else{data.createdBy=myId||"";if(formParent)data.parentId=formParent.id;data.createdAt=Date.now();await db.collection("projects").doc().set(data);toast("Mould added");}
+    $("formDlg").close();
+  }catch(err){writeFailed(err);}
+  btn.disabled=false;
+}
+
+/* ---------- wiring ---------- */
+STAGES.forEach(s=>$("f_stage").append(h("option",{value:s,text:s})));
+$("q").addEventListener("input",e=>{query=e.target.value;render();});
+fillLists();
+$("empForm").addEventListener("submit",saveEmp);
+$("empCancel").addEventListener("click",()=>$("empDlg").close());
+$("pwForm").addEventListener("submit",savePw);
+$("pwCancel").addEventListener("click",()=>$("pwDlg").close());
+function applyView(k){
+  view=VIEWS.some(v=>v.key===k)?k:"admin";$("viewSel").value=view;
+  try{localStorage.setItem("mouldPanel",view);}catch(e){}
+}
+function viewFromHash(){const v=VIEWS.find(x=>x.hash===location.hash.slice(1));return v?v.key:null;}
+(function(){let saved=null;try{saved=localStorage.getItem("mouldPanel");}catch(e){}applyView(viewFromHash()||saved||"admin");})();
+$("viewSel").addEventListener("change",e=>{
+  applyView(e.target.value);
+  try{location.hash=VIEWS.find(v=>v.key===view).hash;}catch(err){}
+  render();
+});
+window.addEventListener("hashchange",()=>{const k=viewFromHash();if(k&&k!==view){applyView(k);render();}});
+$("addBtn").addEventListener("click",()=>openForm(null));
+$("form").addEventListener("submit",saveForm);
+$("formCancel").addEventListener("click",()=>$("formDlg").close());
+function toggleFor(){const own=$("f_for").value==="Own";$("custL").hidden=own;$("phoneL").hidden=own;}
+$("f_for").addEventListener("change",toggleFor);
+JOB_STATUS.forEach(s=>$("j_status").append(h("option",{value:s,text:s})));
+$("jobForm").addEventListener("submit",saveJob);
+$("jobCancel").addEventListener("click",()=>$("jobDlg").close());
+$("partForm").addEventListener("submit",savePart);
+$("partCancel").addEventListener("click",()=>$("partDlg").close());
+$("opForm").addEventListener("submit",saveOp);
+$("opCancel").addEventListener("click",()=>$("opDlg").close());
+$("pvClose").addEventListener("click",()=>$("preview").close());
+$("setBtn").addEventListener("click",openSettings);
+$("setForm").addEventListener("submit",saveSettings);
+$("setCancel").addEventListener("click",()=>$("setDlg").close());
+$("photoInput").addEventListener("change",e=>{const f=e.target.files[0];e.target.value="";uploadPhoto(f);});
+$("preview").addEventListener("close",()=>$("pvBody").replaceChildren());
+$("detail").addEventListener("close",()=>{openId=null;});
+["detail","formDlg","jobDlg","partDlg","opDlg","empDlg","setDlg","pwDlg","preview"].forEach(id=>{const d=$(id);d.addEventListener("click",e=>{if(e.target===d)d.close();});});
+
+/* ---------- login and start ---------- */
+function gate(msg,form,out){
+  $("app").hidden=true;$("gate").hidden=false;
+  $("gateMsg").textContent=msg;$("loginForm").hidden=!form;$("g_out").hidden=!out;
+}
+async function logout(){try{await sb.auth.signOut();}catch(e){}location.reload();}
+async function showLogin(){
+  const r=await sb.rpc("has_admin");
+  if(r.error){gate("The database is not set up yet. Run supabase-setup.sql in your Supabase project, check config.js, then reload this page.",false,false);return;}
+  signupMode=r.data===false;
+  $("g_nameL").hidden=!signupMode;$("g_name").required=signupMode;
+  $("g_btn").textContent=signupMode?"Create admin account":"Log in";
+  gate(signupMode?"No admin account exists yet. Create the admin account for the owner of the shop.":"Log in with your email and password.",true,false);
+}
+async function submitLogin(e){
+  e.preventDefault();
+  const email=$("g_email").value.trim(),pw=$("g_pw").value,err=$("g_err"),btn=$("g_btn");
+  const fail=t=>{err.textContent=t;err.hidden=false;};
+  err.hidden=true;btn.disabled=true;
+  let r;
+  try{
+    r=signupMode?await sb.auth.signUp({email:email,password:pw,options:{data:{name:$("g_name").value.trim()}}})
+      :await sb.auth.signInWithPassword({email:email,password:pw});
+  }catch(x){r={error:{message:"no connection"}};}
+  btn.disabled=false;
+  if(r.error){fail(signupMode?"Couldn’t create the account: "+r.error.message:(/invalid/i.test(r.error.message)?"Wrong email or password.":"Couldn’t log in: "+r.error.message));return;}
+  if(!r.data.session){fail("The account was created, but Supabase wants the email confirmed. Open the link in your email, or turn off “Confirm email” in Supabase. Then reload this page and log in.");return;}
+  enter(r.data.session);
+}
+function subError(){
+  gotProjects=true;
+  showNote("The data couldn’t be loaded. Reload the page to try again.");
+  render();
+}
+async function enter(session){
+  if(entered)return;
+  myId=session.user.id;
+  if(!await loadProfiles()){gate("The database is not set up yet. Run supabase-setup.sql in your Supabase project, then reload this page.",false,true);return;}
+  if(!myRole()){gate("Your account has no access yet. Ask your admin to give you a panel, then reload this page.",false,true);return;}
+  entered=true;
+  canWrite=true;canManage=isAdmin();assets={};
+  user={profiles:async ids=>{const o={};ids.forEach(id=>{const p=profiles.find(x=>x.id===id);o[id]={name:p?(p.name||p.email):"",isMe:id===myId};});return o;}};
+  db=makeDb();
+  const me=profiles.find(x=>x.id===myId);
+  $("foot").replaceChildren(h("span",{text:"Logged in as "+(me.name||me.email)}),
+    h("button",{class:"btn small",type:"button",onclick:()=>openPw(null)},"Change my password"),
+    h("button",{class:"btn small",type:"button",onclick:logout},"Log out"));
+  $("gate").hidden=true;$("app").hidden=false;
+  render();
+  db.collection("projects").onSnapshot(snap=>{
+    gotProjects=true;
+    projects=snap.docs.map(d=>{const x=d.data()||{};return{id:d.id,parentId:str(x.parentId,80),product:str(x.product,120),madeFor:x.madeFor==="Own"?"Own":"Customer",
+      jobNo:str(x.jobNo,40),part:str(x.part,120),customer:str(x.customer,120),phone:str(x.phone,30),mouldType:str(x.mouldType,60),
+      cavities:str(x.cavities,6),steel:str(x.steel,60),machine:str(x.machine,60),due:str(x.due,10),notes:str(x.notes,4000),
+      stage:str(x.stage,20),createdBy:str(x.createdBy,80)};});
+    render();
+  },subError);
+  db.collection("files").onSnapshot(snap=>{
+    files=snap.docs.map(d=>{const x=d.data()||{};return{id:d.id,projectId:str(x.projectId,80),path:str(x.path,300),
+      name:str(x.name,200)||"File",size:+x.size||0,type:str(x.type,100),by:str(x.by,80),at:+x.at||0};}).filter(f=>f.path);
+    render();
+  },()=>{});
+  db.collection("jobwork").onSnapshot(snap=>{
+    jobs=snap.docs.map(d=>{const x=d.data()||{};const s=str(x.status,20);return{id:d.id,projectId:str(x.projectId,80),
+      work:str(x.work,120)||"Job work",vendor:str(x.vendor,120),expected:str(x.expected,10),
+      status:JOB_STATUS.includes(s)?s:JOB_STATUS[0],at:+x.at||0};});
+    render();
+  },()=>{});
+  db.collection("parts").onSnapshot(snap=>{
+    parts=snap.docs.map(d=>{
+      const x=d.data()||{},src=(x.ops&&typeof x.ops==="object")?x.ops:{},ops={};
+      for(const k of Object.keys(src).slice(0,40)){const c=cleanOp(k);if(c&&c===k&&(src[k]==="pending"||src[k]==="done"))ops[k]=src[k];}
+      return{id:d.id,projectId:str(x.projectId,80),kind:x.kind==="Punch"?"Punch":"Part",name:str(x.name,80)||"Part",ops:ops,at:+x.at||0};
+    });
+    render();
+  },()=>{});
+  db.collection("settings").onSnapshot(snap=>{
+    const d=snap.docs.find(x=>x.id===SET_ID);
+    cfgExists=!!d;applySettings(d?d.data():null);render();
+  },()=>{});
+  db.collection("productphotos").onSnapshot(snap=>{
+    photos=Object.create(null);
+    snap.docs.forEach(d=>{const x=d.data()||{},a=str(x.path,300),p=str(x.product,120);if(p&&a)photos[p]={id:d.id,path:a};});
+    render();
+    ensureUrls(Object.values(photos)).then(render);
+  },()=>{});
+  setInterval(async()=>{
+    if(document.hidden||!await loadProfiles())return;
+    if(!myRole()){location.reload();return;}
+    canManage=isAdmin();render();
+  },60000);
+}
+async function start(){
+  const cfg=window.MOULD_CRM_CONFIG||{};
+  if(!window.supabase){gate("The page couldn’t load fully. Check your internet connection and reload.",false,false);return;}
+  if(!cfg.url||!cfg.key||/YOUR-/.test(cfg.url+cfg.key)){gate("Setup is not finished. Open config.js in your GitHub repository and paste your Supabase project URL and publishable key. The steps are in README.md.",false,false);return;}
+  sb=window.supabase.createClient(cfg.url,cfg.key);
+  let s=null;
+  try{s=(await sb.auth.getSession()).data.session;}catch(e){}
+  if(s)enter(s);else showLogin();
+}
+$("loginForm").addEventListener("submit",submitLogin);
+$("g_out").addEventListener("click",logout);
+start();
+})();
+</script>
+</body>
+</html>
