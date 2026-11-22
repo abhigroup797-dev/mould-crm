@@ -159,6 +159,7 @@ textarea{resize:vertical;min-height:84px}
 .tab[aria-pressed="true"]{background:var(--ink);border-color:var(--ink);color:var(--bg)}
 .seg.ro{cursor:inherit}
 .gphoto.none{background:none;cursor:inherit}
+.row.ph{grid-template-columns:44px minmax(0,1fr) 270px 130px 130px}
 .row.prow.ph{grid-template-columns:44px minmax(0,1fr) 170px 70px 110px}
 .row.norow{cursor:default}
 .row.norow:hover{background:none}
@@ -257,6 +258,9 @@ label input,label select,label textarea{margin-top:4px;font-weight:400;font-size
   .team li.srow{grid-template-columns:minmax(0,1fr) auto}
   .tools{flex-wrap:wrap}
   .tabname{flex:1 1 100%}
+  .row.ph{grid-template-columns:44px minmax(0,1fr) auto}
+  .row.ph .open{grid-column:2/-1}
+  .row.ph .due{grid-column:1/3}
   .row.prow.ph{grid-template-columns:44px minmax(0,1fr) auto}
   .row.prow.ph .open{grid-column:2/-1}
   .row.prow.ph .due{grid-column:1/3}
@@ -489,7 +493,7 @@ let db=null,user=null,assets=null,myId=null,canWrite=true,canManage=false;
 let sb=null,profiles=[],pwFor=null,signupMode=false,entered=false;
 const urls={},urlWait=new Set(),urlBad=new Set();
 const closed=new Set();
-let photos=Object.create(null),photoFor=null;
+let photos=Object.create(null),mphotos=Object.create(null),photoFor=null;
 let tasks=[],taskOpen=true,taskVoice=null,rec=null;
 const audioEls={};
 let cfg={shop:"",extra:[],follow:["Shaping","Grinding"],showDone:true,showPhotos:true,showCust:true,startClosed:false,soon:7},cfgExists=false;
@@ -709,9 +713,10 @@ function render(){
       h("button",{class:"btn",type:"button",onclick:()=>{filter="all";query="";$("q").value="";render();}},"Show all moulds"));
   }else{
     empty.hidden=true;list.hidden=false;
+    const useMp=cfg.showPhotos&&Object.keys(mphotos).length>0;
     const rowEl=(p,sub)=>{
       const ws=stat(parts.filter(x=>x.projectId===p.id)),d=dueInfo(p),n=fc[p.id]||0,par=p.parentId?projects.find(x=>x.id===p.parentId):null;
-      return h("li",{class:"row"+(sub?" sub":""),onclick:()=>openDetail(p.id)},
+      return h("li",{class:"row"+(sub?" sub":"")+(useMp?" ph":""),onclick:()=>openDetail(p.id)},useMp?rowPhoto(p,true):null,
         h("button",{class:"open",type:"button",onclick:e=>{e.stopPropagation();openDetail(p.id);}},
           h("span",{class:"job",text:p.jobNo}),
           h("span",{class:"part",text:p.part||"Untitled mould"}),
@@ -730,7 +735,7 @@ function render(){
         h("button",{class:"gtoggle",type:"button","aria-expanded":shut?"false":"true",onclick:()=>{if(closed.has(k))closed.delete(k);else closed.add(k);render();}},
           h("span",{class:"gname",text:k||"No product name"}),
           h("span",{class:"gcount",text:g.length===1?"1 mould":g.length+" moulds"})),
-        (canPlan()&&k)?h("button",{class:"btn small",type:"button","aria-label":(photos[k]?"Change photo of ":"Add photo of ")+k,onclick:()=>pickPhoto(k)},photos[k]?"Change photo":"Add photo"):"",
+        (canPlan()&&k)?h("button",{class:"btn small",type:"button","aria-label":(photos[k]?"Change photo of ":"Add photo of ")+k,onclick:()=>pickPhoto(k)},photos[k]?"Change product photo":"Add product photo"):"",
         (canLead()&&k)?h("button",{class:"btn small",type:"button","aria-label":"Add mould to "+k,onclick:()=>openForm(null,k)},"Add mould"):""));
       if(!shut){
         const ids=new Set(g.map(x=>x.id));
@@ -841,12 +846,12 @@ function renderPanel(){
   for(const p of projects)byId[p.id]=p;
   const due=(a,b)=>{const x=a.due||"9999",y=b.due||"9999";return x<y?-1:x>y?1:0;};
   const label=(VIEWS.find(v=>v.key===view)||{label:view.replace(/^op:/,"")+" panel"}).label;
-  const usePh=cfg.showPhotos&&Object.keys(photos).length>0;
+  const usePh=cfg.showPhotos&&(Object.keys(photos).length+Object.keys(mphotos).length)>0;
   function designSec(){
     const di=STAGES.indexOf("Design"),al=di<0?[]:projects.filter(p=>si(p)>=di),dn=al.filter(p=>si(p)>di).length;
     const rows=projects.filter(p=>STAGES[si(p)]==="Design"&&(!q||(p.product+" "+p.part+" "+p.jobNo+" "+p.customer).toLowerCase().includes(q))).sort(due).map(p=>{
       const d=dueInfo(p),n=fc[p.id]||0;
-      return h("li",{class:"row prow"+(usePh?" ph":""),onclick:()=>openDetail(p.id)},usePh?rowPhoto(p.product):null,
+      return h("li",{class:"row prow"+(usePh?" ph":""),onclick:()=>openDetail(p.id)},usePh?rowPhoto(p,false):null,
         h("button",{class:"open",type:"button",onclick:e=>{e.stopPropagation();openDetail(p.id);}},
           h("span",{class:"job",text:p.jobNo}),h("span",{class:"part",text:p.part||"Untitled mould"}),h("span",{class:"cust",text:p.product})),
         h("span",{class:"due "+d.cls,text:d.text}),
@@ -862,7 +867,7 @@ function renderPanel(){
       .filter(x=>!q||(x.pt.name+" "+x.pt.kind+" "+x.p.product+" "+x.p.part+" "+x.p.jobNo).toLowerCase().includes(q))
       .sort((a,b)=>due(a.p,b.p)).map(x=>{
         const pt=x.pt,p=x.p,d=dueInfo(p);
-        return h("li",{class:"row prow"+(usePh?" ph":""),onclick:()=>openDetail(p.id)},usePh?rowPhoto(p.product):null,
+        return h("li",{class:"row prow"+(usePh?" ph":""),onclick:()=>openDetail(p.id)},usePh?rowPhoto(p,false):null,
           h("button",{class:"open",type:"button",onclick:e=>{e.stopPropagation();openDetail(p.id);}},
             h("span",{class:"job",text:pt.kind}),h("span",{class:"part",text:pt.name}),
             h("span",{class:"cust",text:[p.product,p.part].filter(Boolean).join(", ")})),
@@ -910,7 +915,7 @@ function renderDetail(){
   if(!p){if(dlg.open)dlg.close();openId=null;return;}
   const top=body.scrollTop,d=dueInfo(p);
   const phInput=h("input",{type:"file",accept:"image/png,image/jpeg,image/webp",hidden:true,
-    onchange:e=>{const f=e.target.files[0];e.target.value="";photoFor=p.product;uploadPhoto(f);}});
+    onchange:e=>{const f=e.target.files[0];e.target.value="";photoFor={mould:p.id};uploadPhoto(f);}});
   const mine=files.filter(f=>f.projectId===p.id).sort((a,b)=>b.at-a.at);
   ensureUrls(mine);
   const pj=jobs.filter(j=>j.projectId===p.id).sort((a,b)=>a.at-b.at);
@@ -931,7 +936,7 @@ function renderDetail(){
       h("div",null,h("h2",{text:p.part||"Untitled mould"}),h("p",{text:[p.product,p.jobNo].filter(Boolean).join(", ")})),
       h("button",{class:"btn small",type:"button",onclick:()=>dlg.close()},"Close")),
     detailPhoto(p),
-    (canPlan()&&p.product&&assets)?[phInput,h("button",{class:"btn small",type:"button",style:"margin:0 0 14px",onclick:()=>phInput.click()},photos[p.product]?"Change photo":"Add product photo")]:"",
+    (canPlan()&&assets)?[phInput,h("button",{class:"btn small",type:"button",style:"margin:0 0 14px",onclick:()=>phInput.click()},mphotos[p.id]?"Change this mould\u2019s photo":"Add photo for this mould")]:"",
     h("p",{class:"stagenow",text:"Stage: "+STAGES[si(p)]}),
     track(p,true),
     h("dl",{class:"facts"},
@@ -1211,18 +1216,21 @@ function photoThumb(k){
   return h("button",{class:"gphoto",type:"button","aria-label":"Open photo of "+k,onclick:()=>openPreview({name:k},url,false)},
     h("img",{src:url,alt:"",loading:"lazy",onerror:e=>{e.target.parentNode.hidden=true;}}));
 }
-function rowPhoto(k){
-  const url=photoUrl(k?photos[k]:null);
+function ownPhoto(p){return mphotos[p.id]||null;}
+function shownPhoto(p){return mphotos[p.id]||(p.product?photos[p.product]:null)||null;}
+function rowPhoto(p,ownOnly){
+  const url=photoUrl(ownOnly?ownPhoto(p):shownPhoto(p)),nm=p.part||p.product||"mould";
   if(!url)return h("span",{class:"gphoto none","aria-hidden":"true"});
-  return h("button",{class:"gphoto",type:"button","aria-label":"Open photo of "+k,onclick:e=>{e.stopPropagation();openPreview({name:k},url,false);}},
+  return h("button",{class:"gphoto",type:"button","aria-label":"Open photo of "+nm,onclick:e=>{e.stopPropagation();openPreview({name:nm},url,false);}},
     h("img",{src:url,alt:"",loading:"lazy",onerror:e=>{e.target.hidden=true;}}));
 }
 function detailPhoto(p){
-  const url=photoUrl(p.product?photos[p.product]:null);if(!url)return null;
-  return h("button",{class:"dphoto",type:"button","aria-label":"Open product photo",onclick:()=>openPreview({name:p.product},url,false)},
-    h("img",{src:url,alt:"Photo of "+p.product,onerror:e=>{e.target.parentNode.hidden=true;}}));
+  const own=ownPhoto(p),url=photoUrl(own||(p.product?photos[p.product]:null));if(!url)return null;
+  return [h("button",{class:"dphoto",type:"button","aria-label":"Open photo",onclick:()=>openPreview({name:p.part||p.product},url,false)},
+      h("img",{src:url,alt:"Photo of "+(p.part||p.product),onerror:e=>{e.target.parentNode.hidden=true;}})),
+    own?null:h("p",{class:"hint",style:"margin:-8px 0 10px",text:"This is the product photo. This mould has no photo of its own yet."})];
 }
-function pickPhoto(k){photoFor=k;$("photoInput").click();}
+function pickPhoto(k){photoFor={product:k};$("photoInput").click();}
 async function shrink(file){
   try{
     const bmp=await createImageBitmap(file),m=Math.min(1,1400/Math.max(bmp.width,bmp.height));
@@ -1233,21 +1241,23 @@ async function shrink(file){
   }catch(e){return file;}
 }
 async function uploadPhoto(file){
-  const k=photoFor;photoFor=null;
-  if(!file||!k||!db)return;
+  const t=photoFor;photoFor=null;
+  if(!file||!t||!db)return;
+  const isM=!!t.mould,k=isM?t.mould:t.product,map=isM?mphotos:photos;
+  if(!k)return;
   const blob=await shrink(file),jpg=blob!==file,type=jpg?"image/jpeg":file.type;
   if(!/^image\/(png|jpeg|webp)$/.test(type||"")){toast("Use a JPG, PNG or WebP photo.");return;}
-  const path="products/"+uid()+"."+(jpg?"jpg":type.split("/")[1]);
+  const path=(isM?"moulds/":"products/")+uid()+"."+(jpg?"jpg":type.split("/")[1]);
   toast("Uploading photo…");
   let r;
   try{r=await sb.storage.from(BUCKET).upload(path,blob,{contentType:type,upsert:false});}catch(e){r={error:e};}
   if(r.error){toast("Photo not saved. Try again.");return;}
   try{
-    const old=photos[k];
+    const old=map[k];
     if(old){
       await db.doc("productphotos/"+old.id).update({path:path,by:myId||"",at:Date.now()});
       try{await sb.storage.from(BUCKET).remove([old.path]);}catch(e){}
-    }else await db.collection("productphotos").add({product:k,path:path,by:myId||"",at:Date.now()});
+    }else await db.collection("productphotos").add(isM?{mouldId:k,path:path,by:myId||"",at:Date.now()}:{product:k,path:path,by:myId||"",at:Date.now()});
     toast("Photo saved");
   }catch(e){writeFailed(e);}
 }
@@ -1293,6 +1303,7 @@ async function deleteProject(p){
     for(const f of fs)await db.doc("files/"+f.id).delete();
     for(const j of jobs.filter(x=>x.projectId===p.id))await db.doc("jobwork/"+j.id).delete();
     for(const pt of parts.filter(x=>x.projectId===p.id))await db.doc("parts/"+pt.id).delete();
+    {const mp=mphotos[p.id];if(mp){try{await sb.storage.from(BUCKET).remove([mp.path]);}catch(e){}await db.doc("productphotos/"+mp.id).delete();}}
     await db.doc("projects/"+p.id).delete();$("detail").close();toast("Mould deleted");
   }catch(e){writeFailed(e);}
 }
@@ -1560,10 +1571,14 @@ async function enter(session){
     cfgExists=!!d;applySettings(d?d.data():null);render();
   },()=>{});
   db.collection("productphotos").onSnapshot(snap=>{
-    photos=Object.create(null);
-    snap.docs.forEach(d=>{const x=d.data()||{},a=str(x.path,300),p=str(x.product,120);if(p&&a)photos[p]={id:d.id,path:a};});
+    photos=Object.create(null);mphotos=Object.create(null);
+    snap.docs.forEach(d=>{
+      const x=d.data()||{},a=str(x.path,300),p=str(x.product,120),m=str(x.mouldId,80);
+      if(!a)return;
+      if(m)mphotos[m]={id:d.id,path:a};else if(p)photos[p]={id:d.id,path:a};
+    });
     render();
-    ensureUrls(Object.values(photos)).then(render);
+    ensureUrls(Object.values(photos).concat(Object.values(mphotos))).then(render);
   },()=>{});
   setInterval(async()=>{
     if(document.hidden||!await loadProfiles())return;
