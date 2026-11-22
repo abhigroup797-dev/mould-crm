@@ -147,6 +147,8 @@ textarea{resize:vertical;min-height:84px}
 .tab{border:1px solid var(--line);background:var(--raised);border-radius:6px;padding:9px 16px;font-weight:600;cursor:pointer}
 .tab[aria-pressed="true"]{background:var(--ink);border-color:var(--ink);color:var(--bg)}
 .seg.ro{cursor:inherit}
+.row.norow{cursor:default}
+.row.norow:hover{background:none}
 .seg.ro:hover::before{outline:0}
 .op:disabled{opacity:.6}
 .op.mine{box-shadow:0 0 0 2px var(--blue)}
@@ -387,6 +389,7 @@ label input,label select,label textarea{margin-top:4px;font-weight:400;font-size
     <label style="margin-top:14px">Mould process stages, in order, separated by commas<textarea id="s_stages" maxlength="500" style="min-height:70px"></textarea></label>
     <p class="hint" style="margin-top:4px">Add a process by typing its name where it belongs. The last one is the finished stage.</p>
     <label style="margin-top:14px">Extra work options for parts, separated by commas<input id="s_extra" maxlength="300" placeholder="Laser marking, Texturing"></label>
+    <label style="margin-top:14px">Processes the designer also follows up, separated by commas<input id="s_follow" maxlength="200" placeholder="Shaping, Grinding"></label>
     <label style="margin-top:14px">Mark a mould as due soon when this many days are left<input id="s_soon" type="number" min="1" max="60" inputmode="numeric"></label>
     <div class="checks" style="flex-direction:column;margin-top:16px">
       <label><input type="checkbox" id="s_done">Show dispatched moulds in the All list</label>
@@ -474,7 +477,7 @@ const closed=new Set();
 let photos=Object.create(null),photoFor=null;
 let tasks=[],taskOpen=true,taskVoice=null,rec=null;
 const audioEls={};
-let cfg={shop:"",extra:[],showDone:true,showPhotos:true,showCust:true,startClosed:false,soon:7},cfgExists=false;
+let cfg={shop:"",extra:[],follow:["Shaping","Grinding"],showDone:true,showPhotos:true,showCust:true,startClosed:false,soon:7},cfgExists=false;
 let formParent=null,view="admin",roles={},people=[],isOwner=false,teamOpen=false,empPick=null,staff=[],claims={},asked=false,codes={},whoPick=null;
 const seen={};
 let wantView="admin",userPicked=false,identLate=false,empTab="work";
@@ -570,7 +573,12 @@ function makeDb(){
         const r=await sb.rpc("merge_item",{p_id:id,p_patch:patch});if(r.error)throw r.error;
         const s=subs[c];if(s&&s.rows.has(id))local(c,id,merge(s.rows.get(id),patch));
       },
-      async delete(){const r=await sb.from("items").delete().eq("id",id);if(r.error)throw r.error;local(c,id,null);}};
+      async delete(){
+        const r=await sb.from("items").delete().eq("id",id).select("id");
+        if(r.error)throw r.error;
+        if(Array.isArray(r.data)&&!r.data.length)throw{code:"42501"};
+        local(c,id,null);
+      }};
   }
   function collection(c){
     return{doc:id=>ref(c,id||uid()),
@@ -612,7 +620,7 @@ async function setStage(p,k){
   busy[p.id]=false;
 }
 function track(p,big){
-  const i=si(p),edit=canBoss();
+  const i=si(p),edit=canLead();
   const segs=h("div",{class:"segs"});
   STAGES.forEach((s,k)=>{
     const cls="seg"+(k<=i?" on":"")+(k===i?" cur":"");
@@ -665,7 +673,7 @@ function render(){
     $("tabWork").textContent="My work ("+mine+")";
     $("tabWork").setAttribute("aria-pressed",ov?"false":"true");$("tabAll").setAttribute("aria-pressed",ov?"true":"false");
   }
-  $("addBtn").hidden=!(db&&canBoss());
+  $("addBtn").hidden=!(db&&canLead());
   $("rail").hidden=!ov;
   $("setBtn").hidden=!(db&&canSet()&&view==="admin");
   renderAdminBox();
@@ -680,8 +688,8 @@ function render(){
   const rows=visible(),fc=fileCounts();
   if(!rows.length){
     list.hidden=true;empty.hidden=false;
-    if(!projects.length)empty.replaceChildren(h("p",{text:canBoss()?"No moulds yet. Add your first product and its mould to start tracking.":"No moulds yet."}),
-      canBoss()?h("button",{class:"btn primary",type:"button",onclick:()=>openForm(null)},"Add mould"):"");
+    if(!projects.length)empty.replaceChildren(h("p",{text:canLead()?"No moulds yet. Add your first product and its mould to start tracking.":"No moulds yet."}),
+      canLead()?h("button",{class:"btn primary",type:"button",onclick:()=>openForm(null)},"Add mould"):"");
     else empty.replaceChildren(h("p",{text:"No moulds match this search or stage."}),
       h("button",{class:"btn",type:"button",onclick:()=>{filter="all";query="";$("q").value="";render();}},"Show all moulds"));
   }else{
@@ -708,7 +716,7 @@ function render(){
           h("span",{class:"gname",text:k||"No product name"}),
           h("span",{class:"gcount",text:g.length===1?"1 mould":g.length+" moulds"})),
         (canPlan()&&k)?h("button",{class:"btn small",type:"button","aria-label":(photos[k]?"Change photo of ":"Add photo of ")+k,onclick:()=>pickPhoto(k)},photos[k]?"Change photo":"Add photo"):"",
-        (canBoss()&&k)?h("button",{class:"btn small",type:"button","aria-label":"Add mould to "+k,onclick:()=>openForm(null,k)},"Add mould"):""));
+        (canLead()&&k)?h("button",{class:"btn small",type:"button","aria-label":"Add mould to "+k,onclick:()=>openForm(null,k)},"Add mould"):""));
       if(!shut){
         const ids=new Set(g.map(x=>x.id));
         for(const p of g){
@@ -781,7 +789,7 @@ function teamBlock(){
   const others=profiles.filter(p=>p.id!==myId).sort((a,b)=>(a.name||a.email).localeCompare(b.name||b.email));
   return h("details",{class:"team",open:teamOpen,ontoggle:e=>{teamOpen=e.target.open;}},
     h("summary",{text:"Employees and panels ("+others.length+")"}),
-    h("p",{class:"hint",text:"Add each employee with an email, a password and a panel. The employee logs in with that email and password and gets only that panel: their own work, their tasks and a view of all moulds. Only the admin can open the admin panel, add or delete moulds, assign tasks, add employees and change settings."}),
+    h("p",{class:"hint",text:"Add each employee with an email, a password and a panel. The employee logs in with that email and password and gets only that panel: their own work, their tasks and a view of all moulds. A designer can also add and update moulds, parts, work and stages. Only the admin can open the admin panel, delete moulds, assign tasks, add employees and change settings."}),
     h("button",{class:"btn",type:"button",style:"margin-bottom:12px",onclick:openEmp},"Add employee"),
     others.length?h("ul",null,others.map(p=>h("li",{class:"srow"},
       h("div",null,h("strong",{text:p.name||"No name"}),h("span",{class:"fmeta"},h("span",{text:p.email}),p.role?"":h("span",{class:"late",text:"No access"}))),
@@ -818,11 +826,9 @@ function renderPanel(){
   for(const p of projects)byId[p.id]=p;
   const due=(a,b)=>{const x=a.due||"9999",y=b.due||"9999";return x<y?-1:x>y?1:0;};
   const label=(VIEWS.find(v=>v.key===view)||{label:view.replace(/^op:/,"")+" panel"}).label;
-  let rows=[],none="",unit="",ps=null,pword="";
-  if(view==="designer"){
-    none="No moulds are in the Design stage.";unit="in design";
-    {const di=STAGES.indexOf("Design"),al=di<0?[]:projects.filter(p=>si(p)>=di),dn=al.filter(p=>si(p)>di).length;ps={done:dn,total:al.length,pct:al.length?Math.round(dn*100/al.length):0};pword="moulds designed";}
-    rows=projects.filter(p=>STAGES[si(p)]==="Design"&&(!q||(p.product+" "+p.part+" "+p.jobNo+" "+p.customer).toLowerCase().includes(q))).sort(due).map(p=>{
+  function designSec(){
+    const di=STAGES.indexOf("Design"),al=di<0?[]:projects.filter(p=>si(p)>=di),dn=al.filter(p=>si(p)>di).length;
+    const rows=projects.filter(p=>STAGES[si(p)]==="Design"&&(!q||(p.product+" "+p.part+" "+p.jobNo+" "+p.customer).toLowerCase().includes(q))).sort(due).map(p=>{
       const d=dueInfo(p),n=fc[p.id]||0;
       return h("li",{class:"row prow",onclick:()=>openDetail(p.id)},
         h("button",{class:"open",type:"button",onclick:e=>{e.stopPropagation();openDetail(p.id);}},
@@ -832,11 +838,11 @@ function renderPanel(){
         canPlan()?h("button",{class:"btn small primary",type:"button","aria-label":"Design done for "+p.part,
           onclick:async e=>{e.stopPropagation();await setStage(p,Math.min(DONE,STAGES.indexOf("Design")+1));toast("Design done. Mould moved to "+STAGES[Math.min(DONE,STAGES.indexOf("Design")+1)]+".");}},"Design done"):"");
     });
-  }else{
-    const op=view.slice(3);
-    none="No pending "+op+" work.";unit="pending";
-    ps=stat(parts.filter(pt=>byId[pt.projectId]),op);pword=op+" work done";
-    rows=parts.filter(pt=>pt.ops[op]==="pending"&&byId[pt.projectId]).map(pt=>({pt:pt,p:byId[pt.projectId]}))
+    return{label:"Design",unit:"in design",none:"No moulds are in the Design stage.",pword:"moulds designed",rows:rows,
+      ps:{done:dn,total:al.length,pct:al.length?Math.round(dn*100/al.length):0}};
+  }
+  function opSec(op){
+    const rows=parts.filter(pt=>pt.ops[op]==="pending"&&byId[pt.projectId]).map(pt=>({pt:pt,p:byId[pt.projectId]}))
       .filter(x=>!q||(x.pt.name+" "+x.pt.kind+" "+x.p.product+" "+x.p.part+" "+x.p.jobNo).toLowerCase().includes(q))
       .sort((a,b)=>due(a.p,b.p)).map(x=>{
         const pt=x.pt,p=x.p,d=dueInfo(p);
@@ -849,10 +855,22 @@ function renderPanel(){
           canOp(op)?h("button",{class:"btn small primary",type:"button","aria-label":"Mark "+op+" done for "+pt.name,
             onclick:async e=>{e.stopPropagation();await setOp(pt,op,"done");toast(op+" done for "+pt.name);}},"Mark done"):"");
       });
+    return{label:op,unit:"pending",none:"No pending "+op+" work.",pword:op+" work done",rows:rows,ps:stat(parts.filter(pt=>byId[pt.projectId]),op)};
   }
-  if(!rows.length){list.hidden=true;empty.hidden=false;empty.replaceChildren(h("p",{text:q?"Nothing matches this search.":none}),(ps&&ps.total)?pline(ps,pword):"");return;}
+  // The designer also follows up some processes (Settings), so the Designer panel lists those too.
+  const secs=view==="designer"?[designSec()].concat(followOps().map(opSec)):[opSec(view.slice(3))];
+  if(secs.length===1){
+    const x=secs[0];x.label=label;
+    if(!x.rows.length){list.hidden=true;empty.hidden=false;empty.replaceChildren(h("p",{text:q?"Nothing matches this search.":x.none}),(x.ps&&x.ps.total)?pline(x.ps,x.pword):"");return;}
+  }
   empty.hidden=true;list.hidden=false;
-  list.replaceChildren(h("li",{class:"group"},h("span",{class:"gname",text:label}),h("span",{class:"gcount",text:rows.length+" "+unit}),(ps&&ps.total)?pline(ps,pword):""),...rows);
+  const out=[];
+  for(const x of secs){
+    out.push(h("li",{class:"group"},h("span",{class:"gname",text:x.label}),h("span",{class:"gcount",text:x.rows.length+" "+x.unit}),(x.ps&&x.ps.total)?pline(x.ps,x.pword):""));
+    if(x.rows.length)out.push(...x.rows);
+    else out.push(h("li",{class:"row norow"},h("span",{class:"muted",text:q?"Nothing matches this search.":x.none})));
+  }
+  list.replaceChildren(...out);
 }
 
 /* ---------- detail drawer ---------- */
@@ -907,7 +925,7 @@ function renderDetail(){
     p.notes?[h("h3",{text:"Notes"}),h("p",{class:"notes",text:p.notes})]:[],
     par?h("p",{class:"hint"},"Sub mould of ",h("button",{class:"flink",style:"display:inline",type:"button",text:par.part||"mould",onclick:()=>openDetail(par.id)})):"",
     !p.parentId?[h("h3",{text:"Sub moulds ("+subs.length+")"}),
-      canBoss()?h("button",{class:"btn",type:"button",onclick:()=>openForm(null,p.product,p)},"Add sub mould"):"",
+      canLead()?h("button",{class:"btn",type:"button",onclick:()=>openForm(null,p.product,p)},"Add sub mould"):"",
       subs.length?h("ul",{class:"files subs"},subs.map(c=>h("li",null,
         h("button",{class:"flink",type:"button",text:c.part||"Untitled mould",onclick:()=>openDetail(c.id)}),
         h("span",{class:"fmeta",text:STAGES[si(c)]})))):h("p",{class:"muted",text:"No sub moulds in this mould."})]:[],
@@ -920,13 +938,13 @@ function renderDetail(){
       canAssign()?h("button",{class:"btn",type:"button",onclick:()=>openTask(p.id)},"Add task"):"",
       mt.length?h("ul",{class:"tasks tlist"},mt.map(t=>taskRow(t,"d:"))):h("p",{class:"muted",text:"No tasks for this mould."})]:[],
     h("h3",{text:"Outside job work ("+pj.length+")"}),
-    canBoss()?h("button",{class:"btn",type:"button",onclick:()=>openJob(p.id)},"Add job work"):"",
+    canLead()?h("button",{class:"btn",type:"button",onclick:()=>openJob(p.id)},"Add job work"):"",
     pj.length?h("ul",{class:"files jobs"},pj.map(jobRow)):h("p",{class:"muted",text:"Nothing is sent outside for this project."}),
     h("h3",{text:"Files ("+mine.length+")"}),
     canAdd()?(assets?drop:h("p",{class:"muted",text:"Your access level can’t upload files. Ask the owner to make you a Contributor or Editor."})):"",
     upMsg?h("p",{class:"upmsg"+(upErr?" err":""),text:upMsg}):"",
     mine.length?h("ul",{class:"files"},mine.map(fileRow)):h("p",{class:"muted",text:"No files uploaded for this project yet."}),
-    canBoss()?h("div",{class:"actions"},
+    canLead()?h("div",{class:"actions"},
       isAdmin()?h("button",{class:"btn danger",type:"button",onclick:()=>deleteProject(p)},"Delete mould"):h("span"),
       h("button",{class:"btn",type:"button",onclick:()=>openForm(p)},"Edit details")):""].flat(3).filter(x=>x!=null&&x!==false&&x!==""));
   body.scrollTop=top;
@@ -1088,16 +1106,15 @@ function effView(){
 function isDesigner(){return myRole()==="designer";}
 function myOp(){const r=myRole();return r.indexOf("op:")===0?r.slice(3):"";}
 function hasPanel(){return panelOk(myRole());}
-function canBoss(){return canWrite&&isAdmin();}
+function canLead(){return canWrite&&(isAdmin()||isDesigner());}
 function canPlan(){return canWrite&&(isAdmin()||isDesigner());}
-function canOp(k){return canWrite&&(isAdmin()||myOp()===k);}
+function canOp(k){return canWrite&&(isAdmin()||isDesigner()||myOp()===k);}
 function canAdd(){return canWrite&&(isAdmin()||hasPanel());}
 function overview(){return isAdmin()?view==="admin":(empTab==="all"||!hasPanel());}
 function nextOp(k,st){
   if(!canWrite)return "";
-  if(isAdmin())return OP_NEXT[st];
+  if(isAdmin()||isDesigner())return OP_NEXT[st];
   if(myOp()===k&&st!=="none")return st==="pending"?"done":"pending";
-  if(isDesigner()&&st!=="done")return st==="none"?"pending":"none";
   return "";
 }
 function opSay(st,nx){
@@ -1107,15 +1124,15 @@ function opSay(st,nx){
 }
 function workHint(){
   if(!canWrite)return "";
-  if(isAdmin())return "Tap a work once to mark it to do, again when it is done, and a third time to remove it.";
-  if(isDesigner())return "Tap a work to add it for this part. Tap again to remove it. The operator marks it done.";
+  if(isAdmin()||isDesigner())return "Tap a work once to mark it to do, again when it is done, and a third time to remove it.";
   if(myOp())return "Tap "+myOp()+" on a part to mark it done. Tap again if it is not done.";
   return "";
 }
+function followOps(){return cfg.follow.filter(k=>OPS.includes(k));}
 function queueCount(v){
-  if(v==="designer")return projects.filter(p=>STAGES[si(p)]==="Design").length;
-  const op=v.slice(3),ids=new Set(projects.map(p=>p.id));
-  return parts.filter(pt=>pt.ops[op]==="pending"&&ids.has(pt.projectId)).length;
+  const ids=new Set(projects.map(p=>p.id)),pend=op=>parts.filter(pt=>pt.ops[op]==="pending"&&ids.has(pt.projectId)).length;
+  if(v==="designer")return projects.filter(p=>STAGES[si(p)]==="Design").length+followOps().reduce((n,op)=>n+pend(op),0);
+  return pend(v.slice(3));
 }
 function fillViews(){
   const vs=$("viewSel"),opts=VIEWS.filter(v=>v.key!=="admin"||isAdmin()),sig=opts.map(v=>v.key).join("|");
@@ -1141,11 +1158,12 @@ function applySettings(x){
   STAGES=st.length>=2?st:BASE_STAGES.slice();DONE=STAGES.length-1;
   if(!["all","overdue","jobwork"].includes(filter)&&!STAGES.includes(filter))filter="all";
   OPS=BASE_OPS.concat(cfg.extra);VIEWS=buildViews();
+  cfg.follow=[...new Set((Array.isArray(x.follow)?x.follow:["Shaping","Grinding"]).map(k=>{const c=cleanOp(k).toLowerCase();return OPS.find(o=>o.toLowerCase()===c)||"";}).filter(Boolean))];
   fillLists();
   $("title").textContent=cfg.shop||"Mould projects";document.title=cfg.shop||"Mould CRM";
 }
 function openSettings(){
-  $("s_shop").value=cfg.shop;$("s_stages").value=STAGES.join(", ");$("s_extra").value=cfg.extra.join(", ");$("s_soon").value=cfg.soon;
+  $("s_shop").value=cfg.shop;$("s_follow").value=cfg.follow.join(", ");$("s_stages").value=STAGES.join(", ");$("s_extra").value=cfg.extra.join(", ");$("s_soon").value=cfg.soon;
   $("s_done").checked=cfg.showDone;$("s_photos").checked=cfg.showPhotos;$("s_cust").checked=cfg.showCust;$("s_closed").checked=cfg.startClosed;
   $("setDlg").showModal();
 }
@@ -1155,6 +1173,7 @@ async function saveSettings(e){
     soon:Math.min(60,Math.max(1,Math.round(+$("s_soon").value)||7)),showDone:$("s_done").checked,showPhotos:$("s_photos").checked,
     showCust:$("s_cust").checked,startClosed:$("s_closed").checked,at:Date.now()};
   data.stages=[...new Set($("s_stages").value.split(",").map(cleanOp).filter(Boolean))].slice(0,15);
+  data.follow=$("s_follow").value.split(",").map(cleanOp).filter(Boolean).slice(0,10);
   if(data.stages.length<2){toast("Keep at least 2 process stages.");return;}
   const btn=$("setSave"),ref=db.doc("settings/"+SET_ID);btn.disabled=true;
   try{
@@ -1260,7 +1279,7 @@ function partBlock(pt){
   return h("li",{class:"partli"},
     h("div",{class:"parthead"},h("strong",null,h("span",{class:"kind",text:pt.kind}),pt.name),
       h("span",{class:"fmeta",text:need?done+" of "+need+" done":"No work marked"}),
-      canBoss()?h("button",{class:"btn small danger",type:"button","aria-label":"Delete part "+pt.name,onclick:()=>deletePart(pt)},"Delete"):""),
+      canLead()?h("button",{class:"btn small danger",type:"button","aria-label":"Delete part "+pt.name,onclick:()=>deletePart(pt)},"Delete"):""),
     h("div",{class:"ops"},names.map(k=>{
       const s=pt.ops[k]||"none",nx=nextOp(k,s);
       if(!nx&&s==="none")return null;
@@ -1311,13 +1330,13 @@ async function saveOp(e){
 function jobRow(j){
   const d=parseDue(j.expected),t=new Date();t.setHours(0,0,0,0);
   const late=d&&j.status!=="Received"&&d<t;
-  const sel=h("select",{"aria-label":"Status of "+j.work,disabled:!canBoss(),onchange:e=>setJobStatus(j,e.target.value)},
+  const sel=h("select",{"aria-label":"Status of "+j.work,disabled:!canLead(),onchange:e=>setJobStatus(j,e.target.value)},
     JOB_STATUS.map(s=>h("option",{value:s,text:s,selected:s===j.status})));
   return h("li",{class:j.status==="Received"?"got":""},
     h("div",null,h("strong",{text:j.work}),h("span",{class:"fmeta"},j.vendor?h("span",{text:j.vendor}):"",
       d?h("span",{class:late?"late":"",text:(late?"Was due back ":"Back by ")+fmtDate(d)}):"")),
     sel,
-    canBoss()?h("button",{class:"btn small danger",type:"button","aria-label":"Delete "+j.work,onclick:()=>deleteJob(j)},"Delete"):"");
+    canLead()?h("button",{class:"btn small danger",type:"button","aria-label":"Delete "+j.work,onclick:()=>deleteJob(j)},"Delete"):"");
 }
 async function setJobStatus(j,s){
   if(busy[j.id]||!JOB_STATUS.includes(s))return;busy[j.id]=true;

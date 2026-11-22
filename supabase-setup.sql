@@ -107,13 +107,14 @@ create policy "items change" on public.items for update to authenticated
   using (public.is_member() and (coll <> 'settings' or public.is_admin()))
   with check (public.is_member() and (coll <> 'settings' or public.is_admin()));
 
--- Only an admin deletes moulds and parts. Anyone with access can delete job work
--- and the files they uploaded themselves.
+-- Only an admin deletes moulds. A designer can also delete parts. Anyone with access
+-- can delete job work and the files they uploaded themselves.
 drop policy if exists "items delete" on public.items;
 create policy "items delete" on public.items for delete to authenticated
   using (
     public.is_admin()
     or coll = 'jobwork'
+    or (coll = 'parts' and public.my_role() = 'designer')
     or (coll = 'files' and data ->> 'by' = auth.uid()::text)
   );
 

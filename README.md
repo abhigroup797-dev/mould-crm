@@ -13,7 +13,7 @@ What it does:
 - Dashboard settings for the admin: shop name, extra work options and what the dashboard shows
 - Admin panel, Designer panel, VMC operator panel and a panel for every other work
 - Each employee logs in with an email and password and gets only their own panel: their own work, their tasks and a view of all moulds
-- Roles: the admin does everything, a designer plans parts and their work, an operator marks only their own process done
+- Roles: the admin does everything, a designer adds and updates moulds, parts, work and stages and follows up the processes set in Settings (Shaping and Grinding to start with), an operator marks only their own process done
 
 ## Files
 
