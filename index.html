@@ -471,12 +471,12 @@ label input,label select,label textarea{margin-top:4px;font-weight:400;font-size
 <script>
 (function(){
 "use strict";
-const BASE_STAGES=["Enquiry","Design","Purchase","Shaping","Grinding","Machining","Inward","Fitting","Trial","Dispatched"];
+const BASE_STAGES=["Enquiry","Design","Purchase","Shaping","Grinding","Machining","anord","Fitting","Trial","Dispatched"];
 let STAGES=BASE_STAGES.slice(),DONE=STAGES.length-1;
 const TYPES={png:"image/png",jpg:"image/jpeg",jpeg:"image/jpeg",gif:"image/gif",webp:"image/webp",svg:"image/svg+xml",mp4:"video/mp4",webm:"video/webm",pdf:"application/pdf",csv:"text/csv",md:"text/markdown",json:"application/json",txt:"text/plain"};
 const MAX=50*1024*1024,BUCKET="mould-files";
 const JOB_STATUS=["To send","At vendor","Received"];
-const BASE_OPS=["Material purchase","Shaping","Grinding","EDM design","EDM","Wire cut","Inward","Order","VMC","Turning","Milling","Drilling","Heat treatment","Polishing","Fitting"];
+const BASE_OPS=["Material purchase","Shaping","Grinding","EDM design","EDM","Wire cut","anord","Order","VMC","Turning","Milling","Drilling","Heat treatment","Polishing","Fitting"];
 let OPS=BASE_OPS.slice();
 const OP_SAY={none:"not needed. Tap to mark it to do",pending:"to do. Tap to mark it done",done:"done. Tap to remove it"};
 const OP_NEXT={none:"pending",pending:"done",done:"none"};
