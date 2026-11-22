@@ -142,6 +142,10 @@ textarea{resize:vertical;min-height:84px}
 .seglabel{font:500 12px/1.2 var(--cond);color:var(--muted);text-align:center;overflow:hidden;text-overflow:ellipsis}
 .seg.cur .seglabel{color:var(--ink);font-weight:600}
 .stagenow{display:none;font-weight:600;margin:0 0 6px}
+audio{display:block;width:100%;max-width:340px;height:36px;margin:6px 0 2px}
+.recrow{margin-top:10px;display:flex;flex-wrap:wrap;gap:10px;align-items:center}
+.recrow span{display:flex;flex-wrap:wrap;gap:8px;align-items:center;flex:1 1 220px}
+.recrow audio{margin:0}
 .team.tasks li{grid-template-columns:minmax(0,1fr) auto auto}
 .tasks strong{font-weight:600;overflow-wrap:anywhere;white-space:pre-wrap}
 .tasks li.got strong{color:var(--muted);font-weight:500;text-decoration:line-through}
@@ -378,7 +382,8 @@ label input,label select,label textarea{margin-top:4px;font-weight:400;font-size
 <dialog id="taskDlg" class="modal" style="width:min(460px,calc(100% - 24px))">
   <form class="inner" id="taskForm">
     <div class="dhead"><h2>Add task</h2></div>
-    <label>Task<textarea id="t_text" required maxlength="300" style="min-height:70px"></textarea></label>
+    <label>Task<textarea id="t_text" maxlength="300" style="min-height:70px"></textarea></label>
+    <div class="recrow"><button class="btn" type="button" id="t_rec">Record voice note</button><span id="t_voice"></span></div>
     <label style="margin-top:14px">Assign to<select id="t_to"></select></label>
     <label style="margin-top:14px">Mould (optional)<select id="t_mould"></select></label>
     <label style="margin-top:14px">Due date (optional)<input id="t_due" type="date"></label>
@@ -445,7 +450,8 @@ let sb=null,profiles=[],pwFor=null,signupMode=false,entered=false;
 const urls={},urlWait=new Set(),urlBad=new Set();
 const closed=new Set();
 let photos=Object.create(null),photoFor=null;
-let tasks=[],taskOpen=true;
+let tasks=[],taskOpen=true,taskVoice=null,rec=null;
+const audioEls={};
 let cfg={shop:"",extra:[],showDone:true,showPhotos:true,showCust:true,startClosed:false,soon:7},cfgExists=false;
 let formParent=null,view="admin",roles={},people=[],isOwner=false,teamOpen=false,empPick=null,staff=[],claims={},asked=false,codes={},whoPick=null;
 const seen={};
@@ -823,7 +829,7 @@ function fileRow(f){
     :h("a",{class:"flink",href:url,target:"_blank",rel:"noopener",text:f.name});
   const mine=myId&&f.by===myId;
   return h("li",null,thumb,
-    h("div",null,name,h("span",{class:"fmeta"},h("span",{text:fmtSize(f.size)}),h("span",{text:f.at?fmtDate(new Date(f.at)):""}),
+    h("div",null,name,(/^Voice note /.test(f.name)&&url)?audioEl("f:"+f.id,url):"",h("span",{class:"fmeta"},h("span",{text:fmtSize(f.size)}),h("span",{text:f.at?fmtDate(new Date(f.at)):""}),
       f.by?h("span",null,"by ",h("span",{"data-uid":f.by,text:"…"})):"")),
     (canManage||mine)?h("button",{class:"btn small danger",type:"button","aria-label":"Delete "+f.name,onclick:()=>deleteFile(f)},"Delete"):"");
 }
@@ -844,6 +850,7 @@ function renderDetail(){
     ondragleave:()=>drop.classList.remove("over"),
     ondrop:e=>{e.preventDefault();drop.classList.remove("over");if(e.dataTransfer&&e.dataTransfer.files.length)uploadFiles(p.id,e.dataTransfer.files);}},
     h("button",{class:"btn primary",type:"button",disabled:uploading,onclick:()=>fileInput.click()},"Upload files"),fileInput,
+    h("button",{class:"btn",type:"button",onclick:e=>recordToggle(e.currentTarget,(b,t)=>mouldVoice(p.id,b,t))},rec?"Stop recording":"Record voice note"),
     h("small",{text:"Drawings, CAD files, photos, videos and Excel sheets, up to 50 MB each. You can also drop files here."}));
   body.replaceChildren(...[
     h("div",{class:"dhead"},
@@ -896,6 +903,50 @@ function openPreview(f,url,isVid){
   $("pvBody").replaceChildren(el);$("preview").showModal();
 }
 
+/* ---------- voice notes ---------- */
+async function putVoice(blob,type){
+  const path="voice/"+uid()+(type.indexOf("mp4")>=0?".m4a":".webm");
+  const r=await sb.storage.from(BUCKET).upload(path,blob,{contentType:type,upsert:false});
+  if(r.error)throw r.error;
+  return path;
+}
+function voiceUrl(v){return v?(urls[v]||""):"";}
+async function dropVoice(v){await sb.storage.from(BUCKET).remove([v]);}
+function audioEl(key,url){
+  let a=audioEls[key];
+  if(!a||a.dataset.u!==url){a=document.createElement("audio");a.controls=true;a.preload="none";a.src=url;a.dataset.u=url;audioEls[key]=a;}
+  return a;
+}
+async function recordToggle(btn,onDone){
+  if(rec){rec.stop();return;}
+  if(!(navigator.mediaDevices&&navigator.mediaDevices.getUserMedia&&window.MediaRecorder)){toast("Voice recording is not available in this browser.");return;}
+  let stream;
+  try{stream=await navigator.mediaDevices.getUserMedia({audio:true});}
+  catch(e){toast("The microphone is blocked here. Allow the microphone for this page and try again.");return;}
+  const mime=["audio/webm","audio/mp4"].find(m=>MediaRecorder.isTypeSupported(m))||"";
+  const chunks=[],label="Record voice note",t0=Date.now(),r=new MediaRecorder(stream,mime?{mimeType:mime}:undefined);
+  rec=r;
+  r.ondataavailable=e=>{if(e.data&&e.data.size)chunks.push(e.data);};
+  const tick=setInterval(()=>{
+    const sec=Math.floor((Date.now()-t0)/1000);
+    btn.textContent="Stop recording ("+Math.floor(sec/60)+":"+String(sec%60).padStart(2,"0")+")";
+    if(sec>=300&&r.state!=="inactive")r.stop();
+  },500);
+  r.onstop=()=>{
+    clearInterval(tick);stream.getTracks().forEach(t=>t.stop());
+    const type=(r.mimeType||mime||"audio/webm").split(";")[0].replace("video/","audio/");
+    rec=null;btn.textContent=label;btn.classList.remove("danger");
+    const blob=new Blob(chunks,{type:type});
+    if(blob.size)onDone(blob,type);
+  };
+  btn.textContent="Stop recording (0:00)";btn.classList.add("danger");
+  r.start();
+}
+function mouldVoice(pid,blob,type){
+  const d=new Date(),name="Voice note "+fmtDate(d)+" "+String(d.getHours()).padStart(2,"0")+"."+String(d.getMinutes()).padStart(2,"0")+(type.indexOf("mp4")>=0?".mp4":".webm");
+  uploadFiles(pid,[new File([blob],name,{type:type})]);
+}
+
 /* ---------- task pad ---------- */
 function canAssign(){return isAdmin();}
 function myKeys(){return [myId].filter(Boolean);}
@@ -914,7 +965,7 @@ function taskRow(t){
   const d=parseDue(t.due),t0=new Date();t0.setHours(0,0,0,0);
   const late=d&&!t.done&&d<t0,m=t.projectId?projects.find(x=>x.id===t.projectId):null;
   return h("li",{class:t.done?"got":""},
-    h("div",null,h("strong",{text:t.text}),h("span",{class:"fmeta"},h("span",{text:"For "+taskWho(t)}),
+    h("div",null,h("strong",{text:t.text}),t.voice?(voiceUrl(t.voice)?audioEl("t:"+t.id,voiceUrl(t.voice)):h("span",{class:"fmeta",text:"Loading voice note\u2026"})):"",h("span",{class:"fmeta"},h("span",{text:"For "+taskWho(t)}),
       m?h("span",{text:m.part||"Mould"}):"",d?h("span",{class:late?"late":"",text:(late?"Was due ":"Due ")+fmtDate(d)}):"",t.done?h("span",{text:"Done"}):"")),
     h("button",{class:"btn small"+(t.done?"":" primary"),type:"button",onclick:()=>toggleTask(t)},t.done?"Reopen":"Mark done"),
     canAssign()?h("button",{class:"btn small danger",type:"button","aria-label":"Delete task "+t.text,onclick:()=>deleteTask(t)},"Delete"):"");
@@ -929,7 +980,7 @@ function taskBlock(){
     list.length?h("ul",null,list.map(taskRow)):h("p",{class:"hint",text:"No tasks here yet. Add a task and assign it to an employee or a panel."}));
 }
 function openTask(){
-  $("t_text").value="";$("t_due").value="";
+  $("t_text").value="";$("t_due").value="";taskVoice=null;$("t_voice").replaceChildren();
   $("t_to").replaceChildren(...assignables().map(a=>h("option",{value:"person:"+a.id,text:a.name+", "+roleLabel(a.role)})),
     ...VIEWS.filter(v=>v.key!=="admin").map(v=>h("option",{value:"panel:"+v.key,text:"Everyone in "+v.label})));
   if(view!=="admin")$("t_to").value="panel:"+view;
@@ -940,11 +991,15 @@ function openTask(){
 async function saveTask(e){
   e.preventDefault();
   const v=$("t_to").value,text=$("t_text").value.trim();
-  if(!text||!v)return;
-  const data={text:text,toPanel:"",toPerson:"",projectId:$("t_mould").value,due:$("t_due").value,done:false,by:myId||"",at:Date.now()};
+  if((!text&&!taskVoice)||!v){toast("Type the task or record a voice note.");return;}
+  const data={text:text||"Voice note",toPanel:"",toPerson:"",projectId:$("t_mould").value,due:$("t_due").value,done:false,by:myId||"",at:Date.now()};
   if(v.indexOf("person:")===0){data.toPerson=v.slice(7);const a=assignables().find(x=>x.id===data.toPerson);data.toPanel=a?a.role:"";}
   else data.toPanel=v.slice(6);
   const btn=$("taskSave");btn.disabled=true;
+  if(taskVoice){
+    try{data.voice=await putVoice(taskVoice.blob,taskVoice.type);}
+    catch(err){toast("The voice note couldn\u2019t be saved. Try again.");btn.disabled=false;return;}
+  }
   try{await db.collection("tasks").add(data);$("taskDlg").close();toast("Task added");}
   catch(err){writeFailed(err);}
   btn.disabled=false;
@@ -957,6 +1012,7 @@ async function toggleTask(t){
 }
 async function deleteTask(t){
   if(!await ask("Delete this task?","The task is removed for everyone.","Delete task"))return;
+  if(t.voice){try{await dropVoice(t.voice);}catch(e){}}
   try{await db.doc("tasks/"+t.id).delete();toast("Task deleted");}
   catch(e){writeFailed(e);}
 }
@@ -1262,6 +1318,13 @@ $("opCancel").addEventListener("click",()=>$("opDlg").close());
 $("pvClose").addEventListener("click",()=>$("preview").close());
 $("taskForm").addEventListener("submit",saveTask);
 $("taskCancel").addEventListener("click",()=>$("taskDlg").close());
+$("taskDlg").addEventListener("close",()=>{if(rec)rec.stop();});
+$("t_rec").addEventListener("click",e=>recordToggle(e.currentTarget,(b,t)=>{
+  if(!$("taskDlg").open)return;
+  taskVoice={blob:b,type:t};
+  const a=document.createElement("audio");a.controls=true;a.src=URL.createObjectURL(b);
+  $("t_voice").replaceChildren(a,h("button",{class:"btn small danger",type:"button",onclick:()=>{taskVoice=null;$("t_voice").replaceChildren();}},"Remove"));
+}));
 $("setBtn").addEventListener("click",openSettings);
 $("setForm").addEventListener("submit",saveSettings);
 $("setCancel").addEventListener("click",()=>$("setDlg").close());
@@ -1348,8 +1411,9 @@ async function enter(session){
   },()=>{});
   db.collection("tasks").onSnapshot(snap=>{
     tasks=snap.docs.map(d=>{const x=d.data()||{};return{id:d.id,text:str(x.text,300)||"Task",toPanel:str(x.toPanel,40),toPerson:str(x.toPerson,80),
-      projectId:str(x.projectId,80),due:str(x.due,10),done:x.done===true,at:+x.at||0};});
+      projectId:str(x.projectId,80),due:str(x.due,10),done:x.done===true,voice:str(x.voice,300),at:+x.at||0};});
     render();
+    ensureUrls(tasks.filter(t=>t.voice).map(t=>({path:t.voice}))).then(render);
   },()=>{});
   db.collection("settings").onSnapshot(snap=>{
     const d=snap.docs.find(x=>x.id===SET_ID);
