@@ -1174,8 +1174,6 @@ function applySettings(x){
   cfg={shop:str(x.shop,60),extra:[...new Set(extra)],showDone:x.showDone!==false,showPhotos:x.showPhotos!==false,
     showCust:x.showCust!==false,startClosed:x.startClosed===true,soon:Math.min(60,Math.max(1,Math.round(+x.soon)||7))};
   const st=[...new Set((Array.isArray(x.stages)?x.stages:[]).map(cleanOp).filter(Boolean))].slice(0,15);
-  // Stage lists saved before the Inward stage existed get it after Machining, until the admin saves the list again.
-  if(st.length>=2&&!x.v2&&!st.includes("Inward")&&st.includes("Machining"))st.splice(st.indexOf("Machining")+1,0,"Inward");
   STAGES=st.length>=2?st:BASE_STAGES.slice();DONE=STAGES.length-1;
   if(!["all","overdue","jobwork"].includes(filter)&&!STAGES.includes(filter))filter="all";
   OPS=BASE_OPS.concat(cfg.extra);VIEWS=buildViews();
