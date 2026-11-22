@@ -251,6 +251,8 @@ h3{font:600 18px var(--cond);margin:26px 0 10px}
 .grid2 .full{grid-column:1/-1}
 label{display:block;font-size:14px;font-weight:500}
 label input,label select,label textarea{margin-top:4px;font-weight:400;font-size:16px}
+.field select{margin-top:4px;font-size:16px}
+.field input{margin-top:8px;font-size:16px}
 .formfoot{display:flex;gap:10px;justify-content:flex-end;margin-top:18px}
 #confirm .inner p{margin:6px 0 0;color:var(--muted)}
 #preview{background:#000;max-width:calc(100% - 16px);max-height:calc(100% - 16px);border-radius:8px}
@@ -347,7 +349,7 @@ label input,label select,label textarea{margin-top:4px;font-weight:400;font-size
       <label class="full">Made for<select id="f_for"><option value="Customer">Customer</option><option value="Own">Own purpose</option></select></label>
       <label id="custL">Customer<input id="f_cust" maxlength="120"></label>
       <label id="phoneL">Customer phone<input id="f_phone" type="tel" maxlength="30"></label>
-      <label>Mould type<input id="f_type" list="typeList" maxlength="60" placeholder="2-plate"></label>
+      <div class="field"><label for="f_type">Mould type</label><select id="f_type"></select><input id="f_typeNew" maxlength="60" placeholder="Type the new mould type" aria-label="New mould type" hidden></div>
       <label>Cavities<input id="f_cav" type="number" min="1" max="512" inputmode="numeric"></label>
       <label>Mould steel<input id="f_steel" list="steelList" maxlength="60" placeholder="P20"></label>
       <label>Machine<input id="f_machine" maxlength="60" placeholder="180 ton"></label>
@@ -357,7 +359,6 @@ label input,label select,label textarea{margin-top:4px;font-weight:400;font-size
       <label id="timeL" hidden>Due time<input id="f_time" type="time"></label>
       <label class="full">Notes<textarea id="f_notes" maxlength="4000"></textarea></label>
     </div>
-    <datalist id="typeList"><option value="2-plate"><option value="3-plate"><option value="Hot runner"><option value="Stack mould"><option value="Insert mould"><option value="Family mould"></datalist>
     <datalist id="steelList"><option value="P20"><option value="H13"><option value="718"><option value="NAK80"><option value="S136"><option value="2738"><option value="EN31"></datalist>
     <div class="formfoot">
       <button class="btn" type="button" id="formCancel">Cancel</button>
@@ -429,6 +430,8 @@ label input,label select,label textarea{margin-top:4px;font-weight:400;font-size
     <p class="hint" style="margin-top:4px">Add a process by typing its name where it belongs. The last one is the finished stage.</p>
     <label style="margin-top:14px">Extra work options for parts, separated by commas<input id="s_extra" maxlength="300" placeholder="Laser marking, Texturing"></label>
     <label style="margin-top:14px">Processes the designer also follows up, separated by commas<input id="s_follow" maxlength="200" placeholder="Shaping, Grinding"></label>
+    <label style="margin-top:14px">Mould types, separated by commas<textarea id="s_types" maxlength="900" style="min-height:60px" placeholder="2-plate, 3-plate, Hot runner"></textarea></label>
+    <p class="hint" style="margin-top:4px">These are the choices in the Mould type list when you add a mould. A type that a mould still uses stays in the list.</p>
     <label style="margin-top:14px">Mark a mould as due soon when this many days are left<input id="s_soon" type="number" min="1" max="60" inputmode="numeric"></label>
     <div class="checks" style="flex-direction:column;margin-top:16px">
       <label><input type="checkbox" id="s_done">Show dispatched moulds in the All list</label>
@@ -514,6 +517,7 @@ const TYPES={png:"image/png",jpg:"image/jpeg",jpeg:"image/jpeg",gif:"image/gif",
 const MAX=50*1024*1024,BUCKET="mould-files";
 const JOB_STATUS=["To send","At vendor","Received"];
 const BASE_OPS=["Material purchase","Shaping","Grinding","EDM design","EDM","Wire cut","anord","Order","VMC","Turning","Milling","Drilling","Heat treatment","Polishing","Fitting"];
+const BASE_TYPES=["2-plate","3-plate","Hot runner","Stack mould","Insert mould","Family mould"],NEW_TYPE="+new";
 let OPS=BASE_OPS.slice();
 const OP_SAY={none:"not needed. Tap to mark it to do",pending:"to do. Tap to mark it done",done:"done. Tap to remove it"};
 const OP_NEXT={none:"pending",pending:"done",done:"none"};
@@ -531,7 +535,7 @@ let tasks=[],taskOpen=true,taskVoice=null,rec=null;
 let notices=[],noteOpen=false,oldOpen=false,noteVoice=null,gotNotes=false,notesArmed=false;
 const seenNotes=new Set();
 const audioEls={};
-let cfg={shop:"",extra:[],follow:["Shaping","Grinding"],showDone:true,showPhotos:true,showCust:true,startClosed:false,soon:7},cfgExists=false;
+let cfg={shop:"",extra:[],types:BASE_TYPES.slice(),follow:["Shaping","Grinding"],showDone:true,showPhotos:true,showCust:true,startClosed:false,soon:7},cfgExists=false;
 let formParent=null,view="admin",roles={},people=[],isOwner=false,teamOpen=false,empPick=null,staff=[],claims={},asked=false,codes={},whoPick=null;
 const seen={};
 let wantView="admin",userPicked=false,identLate=false,empTab="work";
@@ -702,7 +706,7 @@ function visible(){
     else if(filter==="jobwork"){if(!oj[p.id])return false;}
     else if(filter==="all"){if(!cfg.showDone&&!q&&si(p)===DONE)return false;}
     else if(STAGES[si(p)]!==filter)return false;
-    return !q||(p.product+" "+p.jobNo+" "+p.part+" "+p.customer+(p.madeFor==="Own"?" own purpose":"")+(jt[p.id]||"")).toLowerCase().includes(q);
+    return !q||(p.product+" "+p.jobNo+" "+p.part+" "+p.customer+" "+p.mouldType+(p.madeFor==="Own"?" own purpose":"")+(jt[p.id]||"")).toLowerCase().includes(q);
   }).sort((a,b)=>{
     const da=si(a)===DONE,dbb=si(b)===DONE;if(da!==dbb)return da?1:-1;
     const ua=isUrgent(a),ub=isUrgent(b);if(ua!==ub)return ua?-1:1;
@@ -1368,7 +1372,7 @@ function fillLists(){
 function applySettings(x){
   x=x||{};
   const extra=(Array.isArray(x.extra)?x.extra:[]).map(cleanOp).filter(k=>k&&!BASE_OPS.includes(k)).slice(0,10);
-  cfg={shop:str(x.shop,60),extra:[...new Set(extra)],showDone:x.showDone!==false,showPhotos:x.showPhotos!==false,
+  cfg={shop:str(x.shop,60),extra:[...new Set(extra)],types:Array.isArray(x.types)?uniqTypes(x.types).slice(0,40):BASE_TYPES.slice(),showDone:x.showDone!==false,showPhotos:x.showPhotos!==false,
     showCust:x.showCust!==false,startClosed:x.startClosed===true,soon:Math.min(60,Math.max(1,Math.round(+x.soon)||7))};
   const st=[...new Set((Array.isArray(x.stages)?x.stages:[]).map(cleanOp).filter(Boolean))].slice(0,15);
   STAGES=st.length>=2?st:BASE_STAGES.slice();DONE=STAGES.length-1;
@@ -1379,7 +1383,7 @@ function applySettings(x){
   $("title").textContent=cfg.shop||"Mould projects";paintTitle();
 }
 function openSettings(){
-  $("s_shop").value=cfg.shop;$("s_follow").value=cfg.follow.join(", ");$("s_stages").value=STAGES.join(", ");$("s_extra").value=cfg.extra.join(", ");$("s_soon").value=cfg.soon;
+  $("s_shop").value=cfg.shop;$("s_follow").value=cfg.follow.join(", ");$("s_stages").value=STAGES.join(", ");$("s_extra").value=cfg.extra.join(", ");$("s_types").value=cfg.types.join(", ");$("s_soon").value=cfg.soon;
   $("s_done").checked=cfg.showDone;$("s_photos").checked=cfg.showPhotos;$("s_cust").checked=cfg.showCust;$("s_closed").checked=cfg.startClosed;
   $("setDlg").showModal();
 }
@@ -1390,6 +1394,7 @@ async function saveSettings(e){
     showCust:$("s_cust").checked,startClosed:$("s_closed").checked,at:Date.now()};
   data.stages=[...new Set($("s_stages").value.split(",").map(cleanOp).filter(Boolean))].slice(0,15);
   data.follow=$("s_follow").value.split(",").map(cleanOp).filter(Boolean).slice(0,10);
+  data.types=uniqTypes($("s_types").value.split(/[,\n]/)).slice(0,40);
   data.v2=true;
   if(data.stages.length<2){toast("Keep at least 2 process stages.");return;}
   const btn=$("setSave"),ref=db.doc("settings/"+SET_ID);btn.disabled=true;
@@ -1594,6 +1599,40 @@ async function saveJob(e){
   btn.disabled=false;
 }
 
+/* ---------- mould types ---------- */
+function cleanType(k){return String(k==null?"":k).replace(/[,\r\n]/g," ").replace(/\s+/g," ").trim().slice(0,60);}
+function uniqTypes(list){
+  const seen=new Set(),out=[];
+  for(const k of list){const c=cleanType(k),l=c.toLowerCase();if(c&&c!==NEW_TYPE&&!seen.has(l)){seen.add(l);out.push(c);}}
+  return out;
+}
+// The list in the form: the types kept in Settings, then every type a mould already uses.
+function typeChoices(cur){
+  const seen=new Set(),out=[];
+  const add=k=>{k=String(k||"").trim();const l=k.toLowerCase();if(k&&k!==NEW_TYPE&&!seen.has(l)){seen.add(l);out.push(k);}};
+  cfg.types.forEach(add);
+  projects.map(p=>p.mouldType).filter(Boolean).sort((a,b)=>a.localeCompare(b)).forEach(add);
+  add(cur);
+  return out;
+}
+function fillTypes(cur){
+  const list=typeChoices(cur),want=String(cur||"").trim().toLowerCase();
+  $("f_type").replaceChildren(h("option",{value:"",text:"Not set"}),...list.map(k=>h("option",{value:k,text:k})),h("option",{value:NEW_TYPE,text:"Add new type…"}));
+  $("f_type").value=list.find(k=>k.toLowerCase()===want)||"";
+  $("f_typeNew").value="";toggleType();
+}
+function toggleType(){
+  const on=$("f_type").value===NEW_TYPE;
+  $("f_typeNew").hidden=!on;
+  if(on)$("f_typeNew").focus();
+}
+// A new type added by the admin is kept in Settings, so it stays in the list even when no mould uses it.
+async function rememberType(k){
+  if(!canSet()||cfg.types.some(x=>x.toLowerCase()===k.toLowerCase()))return;
+  const ref=db.doc("settings/"+SET_ID),data={types:cfg.types.concat(k).slice(0,40),at:Date.now()};
+  try{if(cfgExists)await ref.update(data);else await ref.set(data);}catch(e){}
+}
+
 /* ---------- add / edit form ---------- */
 function openForm(p,prod,parent){
   formParent=(!p&&parent)?parent:null;
@@ -1604,7 +1643,7 @@ function openForm(p,prod,parent){
   $("f_for").value=((p||formParent)&&(p||formParent).madeFor==="Own")?"Own":"Customer";toggleFor();
   $("prodList").replaceChildren(...[...new Set(projects.map(x=>x.product).filter(Boolean))].sort().map(n=>h("option",{value:n})));
   $("f_job").value=p?p.jobNo:"";$("f_part").value=p?p.part:"";$("f_cust").value=p?p.customer:(formParent?formParent.customer:"");
-  $("f_phone").value=p?p.phone:(formParent?formParent.phone:"");$("f_type").value=p?p.mouldType:"";$("f_cav").value=p?p.cavities:"";
+  $("f_phone").value=p?p.phone:(formParent?formParent.phone:"");fillTypes(p?p.mouldType:"");$("f_cav").value=p?p.cavities:"";
   $("f_steel").value=p?p.steel:"";$("f_machine").value=p?p.machine:"";$("f_due").value=p?p.due:"";
   $("f_notes").value=p?p.notes:"";$("f_stage").value=p?STAGES[si(p)]:STAGES[0];
   $("f_urgent").checked=!!(p&&p.urgent);$("f_time").value=(p&&p.dueTime)||"18:00";toggleUrgent();
@@ -1614,7 +1653,13 @@ async function saveForm(e){
   e.preventDefault();
   const v=id=>$(id).value.trim();
   const own=$("f_for").value==="Own";
-  const data={product:v("f_prod"),jobNo:v("f_job"),part:v("f_part"),madeFor:own?"Own":"Customer",customer:own?"":v("f_cust"),phone:own?"":v("f_phone"),mouldType:v("f_type"),
+  let mtype=$("f_type").value,newType="";
+  if(mtype===NEW_TYPE){
+    newType=cleanType($("f_typeNew").value);
+    if(!newType||newType===NEW_TYPE){toast("Type the new mould type, or pick one from the list.");$("f_typeNew").focus();return;}
+    mtype=typeChoices().find(k=>k.toLowerCase()===newType.toLowerCase())||newType;
+  }
+  const data={product:v("f_prod"),jobNo:v("f_job"),part:v("f_part"),madeFor:own?"Own":"Customer",customer:own?"":v("f_cust"),phone:own?"":v("f_phone"),mouldType:mtype,
     cavities:v("f_cav"),steel:v("f_steel"),machine:v("f_machine"),due:v("f_due"),notes:v("f_notes"),
     stage:$("f_stage").value,updatedAt:Date.now()};
   data.urgent=$("f_urgent").checked;data.dueTime=data.urgent?$("f_time").value:"";
@@ -1624,6 +1669,7 @@ async function saveForm(e){
     if(editId){await db.doc("projects/"+editId).update(data);toast("Changes saved");}
     else{data.createdBy=myId||"";if(formParent)data.parentId=formParent.id;data.createdAt=Date.now();await db.collection("projects").doc().set(data);toast("Mould added");}
     $("formDlg").close();
+    if(newType)rememberType(mtype);
   }catch(err){writeFailed(err);}
   btn.disabled=false;
 }
@@ -1652,6 +1698,7 @@ $("form").addEventListener("submit",saveForm);
 $("formCancel").addEventListener("click",()=>$("formDlg").close());
 function toggleUrgent(){$("timeL").hidden=!$("f_urgent").checked;}
 $("f_urgent").addEventListener("change",toggleUrgent);
+$("f_type").addEventListener("change",toggleType);
 setInterval(()=>{document.querySelectorAll("[data-until]").forEach(paintTimer);},1000);
 function toggleFor(){const own=$("f_for").value==="Own";$("custL").hidden=own;$("phoneL").hidden=own;}
 $("f_for").addEventListener("change",toggleFor);

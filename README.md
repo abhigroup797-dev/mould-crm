@@ -10,10 +10,11 @@ What it does:
 - A photo for each product, shown on the dashboard and inside each mould
 - Urgent moulds with a live countdown timer to the due date and time
 - Each mould and sub mould can have its own photo
+- Mould type list: pick a type when you add a mould, or choose **Add new type** to put your own in the list
 - Outside job work with vendor and status
 - Task pad: the admin assigns tasks to an employee or a panel, and the employee marks them done
 - Notifications: the admin sends a message or voice note to an employee, a panel or everyone, and sees who has read it
-- Dashboard settings for the admin: shop name, extra work options and what the dashboard shows
+- Dashboard settings for the admin: shop name, process stages, extra work options, mould types and what the dashboard shows
 - Admin panel, Designer panel, VMC operator panel and a panel for every other work
 - Each employee logs in with an email and password and gets only their own panel: their own work, their tasks and a view of all moulds
 - Roles: the admin does everything, a designer adds and updates moulds, parts, work and stages and follows up the processes set in Settings (Shaping and Grinding to start with), an operator marks only their own process done
