@@ -142,6 +142,23 @@ textarea{resize:vertical;min-height:84px}
 .seglabel{font:500 12px/1.2 var(--cond);color:var(--muted);text-align:center;overflow:hidden;text-overflow:ellipsis}
 .seg.cur .seglabel{color:var(--ink);font-weight:600}
 .stagenow{display:none;font-weight:600;margin:0 0 6px}
+.notebox{margin:0 0 14px;border:1px solid var(--blue);border-radius:8px;background:var(--blue-soft);padding:12px 14px}
+.noteh{margin:0;font:600 18px var(--cond)}
+.notebox .tlist{margin-top:8px}
+#noteTop{margin-top:14px}
+#noteTop .notebox{margin:0}
+.urg{display:inline-block;background:var(--red);color:var(--bg);font:600 12.5px/1 var(--cond);padding:3px 7px;border-radius:4px}
+.timer{font:600 16px/1.2 var(--cond);font-variant-numeric:tabular-nums;color:var(--brass);white-space:nowrap}
+.timer.near,.timer.late{color:var(--red)}
+.timer.big{font-size:25px}
+.urgentcell{display:flex;flex-direction:column;align-items:flex-start;gap:3px}
+.urgbox{margin:0 0 14px;border:1px solid var(--red);border-radius:8px;background:var(--red-soft);padding:12px 14px}
+.urgh{margin:0 0 10px;font:600 18px var(--cond);color:var(--red)}
+.urgcards{display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:8px 12px}
+.urgcard{display:grid;gap:3px;text-align:left;background:var(--raised);border:1px solid var(--line);border-radius:8px;padding:10px 12px;cursor:pointer}
+.urgcard:hover{border-color:var(--red)}
+.urgcard .nm{font-weight:600;overflow-wrap:anywhere}
+.urgcard .ct{color:var(--muted);font-size:14px}
 .track.big .segs{flex-wrap:wrap;gap:6px}
 .track.big .seg{flex:0 0 auto;display:block;height:auto;padding:5px 11px;border:1px solid var(--line);border-radius:999px}
 .track.big .seg::before{display:none}
@@ -306,6 +323,7 @@ label input,label select,label textarea{margin-top:4px;font-weight:400;font-size
     <button type="button" class="tab" id="tabWork" aria-pressed="true">My work</button>
     <button type="button" class="tab" id="tabAll" aria-pressed="false">All moulds</button>
   </nav>
+  <section id="noteTop" hidden></section>
   <nav class="rail" id="rail" aria-label="Filter by stage"></nav>
   <p class="note" id="note" hidden></p>
   <section id="adminBox" hidden></section>
@@ -335,6 +353,8 @@ label input,label select,label textarea{margin-top:4px;font-weight:400;font-size
       <label>Machine<input id="f_machine" maxlength="60" placeholder="180 ton"></label>
       <label>Due date<input id="f_due" type="date"></label>
       <label>Stage<select id="f_stage"></select></label>
+      <div class="checks full"><label><input type="checkbox" id="f_urgent">Urgent: show a countdown timer until the due date</label></div>
+      <label id="timeL" hidden>Due time<input id="f_time" type="time"></label>
       <label class="full">Notes<textarea id="f_notes" maxlength="4000"></textarea></label>
     </div>
     <datalist id="typeList"><option value="2-plate"><option value="3-plate"><option value="Hot runner"><option value="Stack mould"><option value="Insert mould"><option value="Family mould"></datalist>
@@ -423,6 +443,19 @@ label input,label select,label textarea{margin-top:4px;font-weight:400;font-size
   </form>
 </dialog>
 
+<dialog id="noteDlg" class="modal" style="width:min(460px,calc(100% - 24px))">
+  <form class="inner" id="noteForm">
+    <div class="dhead"><h2>Send notification</h2></div>
+    <label>Message<textarea id="n_text" maxlength="300" style="min-height:70px"></textarea></label>
+    <div class="recrow"><button class="btn" type="button" id="n_rec">Record voice note</button><span id="n_voice"></span></div>
+    <label style="margin-top:14px">Send to<select id="n_to"></select></label>
+    <div class="formfoot">
+      <button class="btn" type="button" id="noteCancel">Cancel</button>
+      <button class="btn primary" type="submit" id="noteSave">Send</button>
+    </div>
+  </form>
+</dialog>
+
 <dialog id="taskDlg" class="modal" style="width:min(460px,calc(100% - 24px))">
   <form class="inner" id="taskForm">
     <div class="dhead"><h2>Add task</h2></div>
@@ -495,6 +528,8 @@ const urls={},urlWait=new Set(),urlBad=new Set();
 const closed=new Set();
 let photos=Object.create(null),mphotos=Object.create(null),photoFor=null;
 let tasks=[],taskOpen=true,taskVoice=null,rec=null;
+let notices=[],noteOpen=false,oldOpen=false,noteVoice=null,gotNotes=false,notesArmed=false;
+const seenNotes=new Set();
 const audioEls={};
 let cfg={shop:"",extra:[],follow:["Shaping","Grinding"],showDone:true,showPhotos:true,showCust:true,startClosed:false,soon:7},cfgExists=false;
 let formParent=null,view="admin",roles={},people=[],isOwner=false,teamOpen=false,empPick=null,staff=[],claims={},asked=false,codes={},whoPick=null;
@@ -663,12 +698,14 @@ function visible(){
   for(const pt of parts)jt[pt.projectId]=(jt[pt.projectId]||"")+" "+pt.name+" "+Object.keys(pt.ops).filter(k=>pt.ops[k]==="pending").join(" ");
   return projects.filter(p=>{
     if(filter==="overdue"){if(!isOverdue(p))return false;}
+    else if(filter==="urgent"){if(!isUrgent(p))return false;}
     else if(filter==="jobwork"){if(!oj[p.id])return false;}
     else if(filter==="all"){if(!cfg.showDone&&!q&&si(p)===DONE)return false;}
     else if(STAGES[si(p)]!==filter)return false;
     return !q||(p.product+" "+p.jobNo+" "+p.part+" "+p.customer+(p.madeFor==="Own"?" own purpose":"")+(jt[p.id]||"")).toLowerCase().includes(q);
   }).sort((a,b)=>{
     const da=si(a)===DONE,dbb=si(b)===DONE;if(da!==dbb)return da?1:-1;
+    const ua=isUrgent(a),ub=isUrgent(b);if(ua!==ub)return ua?-1:1;
     const x=a.due||"9999",y=b.due||"9999";if(x!==y)return x<y?-1:1;
     return a.jobNo.localeCompare(b.jobNo,undefined,{numeric:true});
   });
@@ -679,19 +716,20 @@ function chip(key,label,n,warn){
 }
 function render(){
   if(!identReady()){
-    for(const id of ["list","adminBox","rail","addBtn","setBtn","viewSel","tabs"])$(id).hidden=true;
+    for(const id of ["list","adminBox","rail","addBtn","setBtn","viewSel","tabs","noteTop"])$(id).hidden=true;
     $("empty").hidden=false;
     return;
   }
-  view=effView();fillViews();
+  view=effView();fillViews();watchNotes();paintTitle();
   const boss=isAdmin(),ov=overview(),tabs=!boss&&hasPanel();
   $("viewSel").hidden=!boss;$("tabs").hidden=!tabs;
   if(tabs){
-    const mine=tasks.filter(t=>!t.done&&mineTask(t,myKeys(),myRole())).length+queueCount(view);
+    const mine=tasks.filter(t=>!t.done&&mineTask(t,myKeys(),myRole())).length+queueCount(view)+myUnread().length;
     $("tabName").textContent=roleLabel(view);
     $("tabWork").textContent="My work ("+mine+")";
     $("tabWork").setAttribute("aria-pressed",ov?"false":"true");$("tabAll").setAttribute("aria-pressed",ov?"true":"false");
   }
+  {const nb=unreadBox();$("noteTop").hidden=!nb;$("noteTop").replaceChildren(...(nb?[nb]:[]));}
   $("addBtn").hidden=!(db&&canLead());
   $("rail").hidden=!(ov||tabs);
   $("setBtn").hidden=!(db&&canSet()&&view==="admin");
@@ -699,6 +737,7 @@ function render(){
   const counts={},oj=openJobs(),pw=pendingOps(),jw=projects.filter(p=>oj[p.id]).length;let late=0;
   for(const p of projects){const s=STAGES[si(p)];counts[s]=(counts[s]||0)+1;if(isOverdue(p))late++;}
   $("rail").replaceChildren(chip("all","All",projects.length),...STAGES.map(s=>chip(s,s,counts[s]||0)),
+    (projects.some(isUrgent)||filter==="urgent")?chip("urgent","Urgent",projects.filter(isUrgent).length,true):"",
     (jw||filter==="jobwork")?chip("jobwork","Job work pending",jw):"",
     (late||filter==="overdue")?chip("overdue","Overdue",late,true):"");
   if(!ov){renderPanel();if(openId)renderDetail();return;}
@@ -722,7 +761,7 @@ function render(){
           h("span",{class:"part",text:p.part||"Untitled mould"}),
           h("span",{class:"cust",text:par?"Sub mould of "+(par.part||"mould"):(p.madeFor==="Own"?"Own purpose":(cfg.showCust?p.customer:""))})),
         track(p,false),
-        h("span",{class:"due "+d.cls,text:d.text}),
+        dueCell(p),
         h("span",{class:"fcount"},ws.total?h("span",{class:"rowpct"},pbar(ws.pct),ws.pct+"% done"):"",n===1?"1 file":n+" files",pw[p.id]?h("b",{text:pw[p.id]+" part work pending"}):"",oj[p.id]?h("b",{text:oj[p.id]+" job work pending"}):""));
     };
     const groups=new Map();
@@ -826,6 +865,7 @@ function renderAdminBox(){
   const prog=VIEWS.filter(v=>v.key.indexOf("op:")===0).map(v=>({v:v,s:stat(parts,v.key.slice(3))})).filter(x=>x.s.total);
   const boss=isAdmin(),ov=overview();
   if(!boss&&!hasPanel())kids.push(h("p",{class:"note",text:"You don\u2019t have a panel yet. Ask the admin to give you one. Until then you can only view the moulds."}));
+  if(ov){const ub=urgentBox();if(ub)kids.push(ub);}
   if(ov&&prog.length){
     const all=stat(parts);
     kids.push(h("div",{class:"prog"},
@@ -834,6 +874,8 @@ function renderAdminBox(){
         h("span",{class:"nm",text:x.v.key.slice(3)}),h("span",{class:"ct",text:x.s.done+" of "+x.s.total+" done, "+x.s.pct+"%"}),pbar(x.s.pct)))));
   }
   if(boss||!ov){const tb=taskBlock();if(tb)kids.push(tb);}
+  if(boss&&view==="admin")kids.push(sentBlock());
+  if(!boss&&(!ov||!hasPanel())){const ob=oldNotesBlock();if(ob)kids.push(ob);}
   if(view==="admin"&&isAdmin())kids.push(teamBlock());
   box.hidden=!kids.length;box.replaceChildren(...kids);
 }
@@ -844,7 +886,7 @@ function renderPanel(){
   if(!gotProjects){list.hidden=true;empty.hidden=false;return;}
   const q=query.trim().toLowerCase(),byId={},fc=fileCounts();
   for(const p of projects)byId[p.id]=p;
-  const due=(a,b)=>{const x=a.due||"9999",y=b.due||"9999";return x<y?-1:x>y?1:0;};
+  const due=(a,b)=>{const ua=isUrgent(a),ub=isUrgent(b);if(ua!==ub)return ua?-1:1;const x=a.due||"9999",y=b.due||"9999";return x<y?-1:x>y?1:0;};
   const label=(VIEWS.find(v=>v.key===view)||{label:view.replace(/^op:/,"")+" panel"}).label;
   const usePh=cfg.showPhotos&&(Object.keys(photos).length+Object.keys(mphotos).length)>0;
   function designSec(){
@@ -854,7 +896,7 @@ function renderPanel(){
       return h("li",{class:"row prow"+(usePh?" ph":""),onclick:()=>openDetail(p.id)},usePh?rowPhoto(p,false):null,
         h("button",{class:"open",type:"button",onclick:e=>{e.stopPropagation();openDetail(p.id);}},
           h("span",{class:"job",text:p.jobNo}),h("span",{class:"part",text:p.part||"Untitled mould"}),h("span",{class:"cust",text:p.product})),
-        h("span",{class:"due "+d.cls,text:d.text}),
+        dueCell(p),
         h("span",{class:"fcount",text:n===1?"1 file":n+" files"}),
         canPlan()?h("button",{class:"btn small primary",type:"button","aria-label":"Design done for "+p.part,
           onclick:async e=>{e.stopPropagation();await setStage(p,Math.min(DONE,STAGES.indexOf("Design")+1));toast("Design done. Mould moved to "+STAGES[Math.min(DONE,STAGES.indexOf("Design")+1)]+".");}},"Design done"):"");
@@ -871,7 +913,7 @@ function renderPanel(){
           h("button",{class:"open",type:"button",onclick:e=>{e.stopPropagation();openDetail(p.id);}},
             h("span",{class:"job",text:pt.kind}),h("span",{class:"part",text:pt.name}),
             h("span",{class:"cust",text:[p.product,p.part].filter(Boolean).join(", ")})),
-          h("span",{class:"due "+d.cls,text:d.text}),
+          dueCell(p),
           h("span",{class:"fcount",text:STAGES[si(p)]}),
           canOp(op)?h("button",{class:"btn small primary",type:"button","aria-label":"Mark "+op+" done for "+pt.name,
             onclick:async e=>{e.stopPropagation();await setOp(pt,op,"done");toast(op+" done for "+pt.name);}},"Mark done"):"");
@@ -939,12 +981,13 @@ function renderDetail(){
     (canPlan()&&assets)?[phInput,h("button",{class:"btn small",type:"button",style:"margin:0 0 14px",onclick:()=>phInput.click()},mphotos[p.id]?"Change this mould\u2019s photo":"Add photo for this mould")]:"",
     h("p",{class:"stagenow",text:"Stage: "+STAGES[si(p)]}),
     track(p,true),
+    canLead()?h("button",{class:"btn small",type:"button",style:"margin:10px 0 0",onclick:()=>setUrgent(p,!p.urgent)},p.urgent?"Remove urgent":"Mark as urgent"):"",
     h("dl",{class:"facts"},
       fact("Made for",p.madeFor==="Own"?"Own purpose":"Customer"),
       fact("Customer",p.customer),
       fact("Customer phone",p.phone?h("a",{href:phoneHref,text:p.phone}):null),
       fact("Mould type",p.mouldType),fact("Cavities",p.cavities),fact("Mould steel",p.steel),fact("Machine",p.machine),
-      fact("Due date",h("span",{class:"due "+d.cls,text:d.text})),
+      fact("Due date",[h("span",{class:"due "+d.cls,text:d.text}),isUrgent(p)?h("div",{style:"margin-top:4px;display:flex;gap:8px;align-items:center;flex-wrap:wrap"},h("b",{class:"urg",text:"Urgent"}),h("span",{class:"muted",text:"by "+fmtTime(p.dueTime||"18:00")}),timerEl(p)):null]),
       fact("Added by",p.createdBy?h("span",{"data-uid":p.createdBy,text:"…"}):null)),
     p.notes?[h("h3",{text:"Notes"}),h("p",{class:"notes",text:p.notes})]:[],
     par?h("p",{class:"hint"},"Sub mould of ",h("button",{class:"flink",style:"display:inline",type:"button",text:par.part||"mould",onclick:()=>openDetail(par.id)})):"",
@@ -1030,6 +1073,109 @@ function mouldVoice(pid,blob,type){
   uploadFiles(pid,[new File([blob],name,{type:type})]);
 }
 
+/* ---------- notifications from the admin ---------- */
+function noteMine(n){
+  if(n.toAll)return true;
+  if(n.toPerson)return myKeys().includes(n.toPerson);
+  return !!n.toPanel&&n.toPanel===myRole();
+}
+function myUnread(){return(isAdmin()||!myId)?[]:notices.filter(n=>noteMine(n)&&!n.reads[myId]);}
+function readNames(ids){return ids.map(id=>{const x=profiles.find(y=>y.id===id);return x?(x.name||x.email):"";}).filter(Boolean).join(", ");}
+function noteWho(n){
+  if(n.toAll)return "everyone";
+  if(n.toPerson){const a=assignables().find(x=>x.id===n.toPerson);return a?a.name:"an employee";}
+  return "everyone in "+roleLabel(n.toPanel);
+}
+function fmtWhen(ts){const d=new Date(ts);return fmtDate(d)+", "+fmtTime(String(d.getHours()).padStart(2,"0")+":"+String(d.getMinutes()).padStart(2,"0"));}
+function noteBody(n,where){
+  return [h("strong",{text:n.text}),n.voice?(voiceUrl(n.voice)?audioEl(where+n.id,voiceUrl(n.voice)):h("span",{class:"fmeta",text:"Loading voice note\u2026"})):""];
+}
+function beep(){
+  try{
+    const C=window.AudioContext||window.webkitAudioContext;if(!C)return;
+    const c=new C(),o=c.createOscillator(),g=c.createGain();
+    o.frequency.value=880;g.gain.value=.15;o.connect(g);g.connect(c.destination);o.start();o.stop(c.currentTime+.3);
+    setTimeout(()=>{try{c.close();}catch(e){}},700);
+  }catch(e){}
+}
+function alertUser(n){
+  toast("New notification: "+n.text.slice(0,90));beep();
+  try{if(navigator.vibrate)navigator.vibrate([200,100,200]);}catch(e){}
+}
+// Called on every render: tells the person once about each notification that arrives while the page is open.
+function watchNotes(){
+  if(!gotNotes)return;
+  const un=myUnread();
+  if(notesArmed){const fresh=un.filter(n=>!seenNotes.has(n.id));if(fresh.length)alertUser(fresh[0]);}
+  un.forEach(n=>seenNotes.add(n.id));notesArmed=true;
+}
+function paintTitle(){const n=myUnread().length;document.title=(n?"("+n+") ":"")+(cfg.shop||"Mould CRM");}
+async function readNote(n){
+  if(!myId||busy[n.id])return;busy[n.id]=true;
+  const patch={};patch["read_"+myId]=Date.now();
+  try{await db.doc("notices/"+n.id).update(patch);}catch(e){writeFailed(e);}
+  busy[n.id]=false;
+}
+function unreadBox(){
+  const list=myUnread().sort((a,b)=>b.at-a.at);
+  if(!list.length)return null;
+  return h("div",{class:"notebox"},h("h2",{class:"noteh",text:"New notifications ("+list.length+")"}),
+    h("ul",{class:"tasks tlist"},list.map(n=>h("li",null,
+      h("div",null,noteBody(n,"u:"),h("span",{class:"fmeta"},h("span",{text:"From the admin"}),h("span",{text:fmtWhen(n.at)}))),
+      h("button",{class:"btn small primary",type:"button",onclick:()=>readNote(n)},"OK, read")))));
+}
+function oldNotesBlock(){
+  if(isAdmin()||!myId)return null;
+  const list=notices.filter(n=>noteMine(n)&&n.reads[myId]).sort((a,b)=>b.at-a.at).slice(0,20);
+  if(!list.length)return null;
+  return h("details",{class:"team tasks",open:oldOpen,ontoggle:e=>{oldOpen=e.target.open;}},
+    h("summary",{text:"Earlier notifications ("+list.length+")"}),
+    h("ul",null,list.map(n=>h("li",null,h("div",null,noteBody(n,"o:"),h("span",{class:"fmeta"},h("span",{text:fmtWhen(n.at)})))))));
+}
+function sentBlock(){
+  const list=notices.slice().sort((a,b)=>b.at-a.at).slice(0,30);
+  return h("details",{class:"team tasks",open:noteOpen,ontoggle:e=>{noteOpen=e.target.open;}},
+    h("summary",{text:"Notifications ("+notices.length+" sent)"}),
+    h("button",{class:"btn",type:"button",style:"margin-bottom:12px",onclick:openNote},"Send notification"),
+    list.length?h("ul",null,list.map(n=>{
+      const ids=Object.keys(n.reads),names=readNames(ids);
+      return h("li",null,
+        h("div",null,noteBody(n,"s:"),h("span",{class:"fmeta"},h("span",{text:"To "+noteWho(n)}),h("span",{text:fmtWhen(n.at)}),
+          h("span",{text:ids.length?"Read by "+ids.length+(names?": "+names:""):"Not read yet"}))),
+        h("span"),
+        h("button",{class:"btn small danger",type:"button","aria-label":"Delete notification "+n.text,onclick:()=>deleteNote(n)},"Delete"));
+    })):h("p",{class:"hint",text:"No notifications sent yet. Send one to an employee, a panel or everyone."}));
+}
+function openNote(){
+  $("n_text").value="";noteVoice=null;$("n_voice").replaceChildren();
+  $("n_to").replaceChildren(h("option",{value:"all",text:"Everyone"}),
+    ...assignables().map(a=>h("option",{value:"person:"+a.id,text:a.name+", "+roleLabel(a.role)})),
+    ...VIEWS.filter(v=>v.key!=="admin").map(v=>h("option",{value:"panel:"+v.key,text:"Everyone in "+v.label})));
+  $("noteDlg").showModal();
+}
+async function saveNote(e){
+  e.preventDefault();
+  const v=$("n_to").value,text=$("n_text").value.trim();
+  if(!text&&!noteVoice){toast("Type the message or record a voice note.");return;}
+  const data={text:text||"Voice note",toAll:v==="all",toPanel:"",toPerson:"",by:myId||"",at:Date.now()};
+  if(v.indexOf("person:")===0){data.toPerson=v.slice(7);const a=assignables().find(x=>x.id===data.toPerson);data.toPanel=a?a.role:"";}
+  else if(v.indexOf("panel:")===0)data.toPanel=v.slice(6);
+  const btn=$("noteSave");btn.disabled=true;
+  if(noteVoice){
+    try{data.voice=await putVoice(noteVoice.blob,noteVoice.type);}
+    catch(err){toast("The voice note couldn\u2019t be saved. Try again.");btn.disabled=false;return;}
+  }
+  try{await db.collection("notices").add(data);$("noteDlg").close();toast("Notification sent");}
+  catch(err){writeFailed(err);}
+  btn.disabled=false;
+}
+async function deleteNote(n){
+  if(!await ask("Delete this notification?","It is removed for everyone.","Delete notification"))return;
+  if(n.voice){try{await dropVoice(n.voice);}catch(e){}}
+  try{await db.doc("notices/"+n.id).delete();toast("Notification deleted");}
+  catch(e){writeFailed(e);}
+}
+
 /* ---------- task pad ---------- */
 function canAssign(){return isAdmin();}
 function myKeys(){return [myId].filter(Boolean);}
@@ -1106,6 +1252,52 @@ async function deleteTask(t){
   catch(e){writeFailed(e);}
 }
 
+/* ---------- urgent moulds and their countdown ---------- */
+function isUrgent(p){return p.urgent===true&&si(p)!==DONE;}
+function untilMs(p){
+  if(!isUrgent(p))return 0;
+  const d=parseDue(p.due);if(!d)return 0;
+  const m=/^(\d\d):(\d\d)$/.exec(p.dueTime||"")||[0,"18","00"];
+  d.setHours(+m[1],+m[2],0,0);
+  return d.getTime();
+}
+function fmtTime(t){const m=/^(\d\d):(\d\d)$/.exec(t||"");if(!m)return "";const hh=+m[1];return ((hh%12)||12)+":"+m[2]+(hh<12?" AM":" PM");}
+function fmtLeft(ms){
+  let sec=Math.floor(Math.abs(ms)/1000);
+  const d=Math.floor(sec/86400);sec-=d*86400;
+  const t=(d?d+"d ":"")+String(Math.floor(sec/3600)).padStart(2,"0")+":"+String(Math.floor(sec%3600/60)).padStart(2,"0")+":"+String(sec%60).padStart(2,"0");
+  return ms<0?"Late by "+t:t+" left";
+}
+function paintTimer(el){
+  const ms=+el.dataset.until-Date.now();
+  el.textContent=fmtLeft(ms);
+  el.classList.toggle("late",ms<0);el.classList.toggle("near",ms>=0&&ms<864e5);
+}
+function timerEl(p,cls){
+  const u=untilMs(p);if(!u)return null;
+  const el=h("span",{class:"timer"+(cls?" "+cls:""),"data-until":String(u),role:"timer"});
+  paintTimer(el);return el;
+}
+function dueCell(p){
+  const d=dueInfo(p);
+  if(!isUrgent(p))return h("span",{class:"due "+d.cls,text:d.text});
+  return h("span",{class:"due urgentcell"},h("b",{class:"urg",text:"Urgent"}),timerEl(p)||h("span",{class:d.cls,text:d.text}));
+}
+async function setUrgent(p,on){
+  if(on&&!p.due){toast("Set a due date first. Tap Edit details.");return;}
+  try{await db.doc("projects/"+p.id).update({urgent:on,updatedAt:Date.now()});toast(on?"Marked as urgent":"Urgent removed");}
+  catch(e){writeFailed(e);}
+}
+function urgentBox(){
+  const list=projects.filter(isUrgent).sort((a,b)=>(untilMs(a)||9e15)-(untilMs(b)||9e15));
+  if(!list.length)return null;
+  return h("div",{class:"urgbox"},h("h2",{class:"urgh",text:"Urgent ("+list.length+")"}),
+    h("div",{class:"urgcards"},list.map(p=>h("button",{type:"button",class:"urgcard",onclick:()=>openDetail(p.id)},
+      h("span",{class:"nm",text:p.part||"Untitled mould"}),
+      h("span",{class:"ct",text:[p.product,STAGES[si(p)]].filter(Boolean).join(", ")}),
+      timerEl(p,"big")||h("span",{class:"ct",text:"No due date set"})))));
+}
+
 /* ---------- work progress ---------- */
 function pbar(pct){const i=document.createElement("i");i.style.width=pct+"%";return h("div",{class:"pbar",role:"progressbar","aria-valuenow":pct,"aria-valuemin":0,"aria-valuemax":100},i);}
 function stat(list,op){
@@ -1180,11 +1372,11 @@ function applySettings(x){
     showCust:x.showCust!==false,startClosed:x.startClosed===true,soon:Math.min(60,Math.max(1,Math.round(+x.soon)||7))};
   const st=[...new Set((Array.isArray(x.stages)?x.stages:[]).map(cleanOp).filter(Boolean))].slice(0,15);
   STAGES=st.length>=2?st:BASE_STAGES.slice();DONE=STAGES.length-1;
-  if(!["all","overdue","jobwork"].includes(filter)&&!STAGES.includes(filter))filter="all";
+  if(!["all","overdue","jobwork","urgent"].includes(filter)&&!STAGES.includes(filter))filter="all";
   OPS=BASE_OPS.concat(cfg.extra);VIEWS=buildViews();
   cfg.follow=[...new Set((Array.isArray(x.follow)?x.follow:["Shaping","Grinding"]).map(k=>{const c=cleanOp(k).toLowerCase();return OPS.find(o=>o.toLowerCase()===c)||"";}).filter(Boolean))];
   fillLists();
-  $("title").textContent=cfg.shop||"Mould projects";document.title=cfg.shop||"Mould CRM";
+  $("title").textContent=cfg.shop||"Mould projects";paintTitle();
 }
 function openSettings(){
   $("s_shop").value=cfg.shop;$("s_follow").value=cfg.follow.join(", ");$("s_stages").value=STAGES.join(", ");$("s_extra").value=cfg.extra.join(", ");$("s_soon").value=cfg.soon;
@@ -1415,6 +1607,7 @@ function openForm(p,prod,parent){
   $("f_phone").value=p?p.phone:(formParent?formParent.phone:"");$("f_type").value=p?p.mouldType:"";$("f_cav").value=p?p.cavities:"";
   $("f_steel").value=p?p.steel:"";$("f_machine").value=p?p.machine:"";$("f_due").value=p?p.due:"";
   $("f_notes").value=p?p.notes:"";$("f_stage").value=p?STAGES[si(p)]:STAGES[0];
+  $("f_urgent").checked=!!(p&&p.urgent);$("f_time").value=(p&&p.dueTime)||"18:00";toggleUrgent();
   $("formDlg").showModal();
 }
 async function saveForm(e){
@@ -1424,6 +1617,8 @@ async function saveForm(e){
   const data={product:v("f_prod"),jobNo:v("f_job"),part:v("f_part"),madeFor:own?"Own":"Customer",customer:own?"":v("f_cust"),phone:own?"":v("f_phone"),mouldType:v("f_type"),
     cavities:v("f_cav"),steel:v("f_steel"),machine:v("f_machine"),due:v("f_due"),notes:v("f_notes"),
     stage:$("f_stage").value,updatedAt:Date.now()};
+  data.urgent=$("f_urgent").checked;data.dueTime=data.urgent?$("f_time").value:"";
+  if(data.urgent&&!data.due){toast("Set a due date for an urgent mould, so the countdown can run.");return;}
   const btn=$("formSave");btn.disabled=true;
   try{
     if(editId){await db.doc("projects/"+editId).update(data);toast("Changes saved");}
@@ -1455,6 +1650,9 @@ window.addEventListener("hashchange",()=>{const k=viewFromHash();if(k&&k!==wantV
 $("addBtn").addEventListener("click",()=>openForm(null));
 $("form").addEventListener("submit",saveForm);
 $("formCancel").addEventListener("click",()=>$("formDlg").close());
+function toggleUrgent(){$("timeL").hidden=!$("f_urgent").checked;}
+$("f_urgent").addEventListener("change",toggleUrgent);
+setInterval(()=>{document.querySelectorAll("[data-until]").forEach(paintTimer);},1000);
 function toggleFor(){const own=$("f_for").value==="Own";$("custL").hidden=own;$("phoneL").hidden=own;}
 $("f_for").addEventListener("change",toggleFor);
 JOB_STATUS.forEach(s=>$("j_status").append(h("option",{value:s,text:s})));
@@ -1469,6 +1667,15 @@ $("tabWork").addEventListener("click",()=>{empTab="work";render();});
 $("tabAll").addEventListener("click",()=>{empTab="all";render();});
 $("taskForm").addEventListener("submit",saveTask);
 $("taskCancel").addEventListener("click",()=>$("taskDlg").close());
+$("noteForm").addEventListener("submit",saveNote);
+$("noteCancel").addEventListener("click",()=>$("noteDlg").close());
+$("noteDlg").addEventListener("close",()=>{if(rec)rec.stop();});
+$("n_rec").addEventListener("click",e=>recordToggle(e.currentTarget,(b,t)=>{
+  if(!$("noteDlg").open)return;
+  noteVoice={blob:b,type:t};
+  const a=document.createElement("audio");a.controls=true;a.src=URL.createObjectURL(b);
+  $("n_voice").replaceChildren(a,h("button",{class:"btn small danger",type:"button",onclick:()=>{noteVoice=null;$("n_voice").replaceChildren();}},"Remove"));
+}));
 $("taskDlg").addEventListener("close",()=>{if(rec)rec.stop();});
 $("t_rec").addEventListener("click",e=>recordToggle(e.currentTarget,(b,t)=>{
   if(!$("taskDlg").open)return;
@@ -1482,7 +1689,7 @@ $("setCancel").addEventListener("click",()=>$("setDlg").close());
 $("photoInput").addEventListener("change",e=>{const f=e.target.files[0];e.target.value="";uploadPhoto(f);});
 $("preview").addEventListener("close",()=>$("pvBody").replaceChildren());
 $("detail").addEventListener("close",()=>{openId=null;});
-["detail","formDlg","jobDlg","partDlg","opDlg","empDlg","setDlg","taskDlg","pwDlg","preview"].forEach(id=>{const d=$(id);d.addEventListener("click",e=>{if(e.target===d)d.close();});});
+["detail","formDlg","jobDlg","partDlg","opDlg","empDlg","setDlg","taskDlg","noteDlg","pwDlg","preview"].forEach(id=>{const d=$(id);d.addEventListener("click",e=>{if(e.target===d)d.close();});});
 
 /* ---------- login and start ---------- */
 function gate(msg,form,out){
@@ -1538,7 +1745,7 @@ async function enter(session){
     projects=snap.docs.map(d=>{const x=d.data()||{};return{id:d.id,parentId:str(x.parentId,80),product:str(x.product,120),madeFor:x.madeFor==="Own"?"Own":"Customer",
       jobNo:str(x.jobNo,40),part:str(x.part,120),customer:str(x.customer,120),phone:str(x.phone,30),mouldType:str(x.mouldType,60),
       cavities:str(x.cavities,6),steel:str(x.steel,60),machine:str(x.machine,60),due:str(x.due,10),notes:str(x.notes,4000),
-      stage:str(x.stage,20),createdBy:str(x.createdBy,80)};});
+      stage:str(x.stage,20),createdBy:str(x.createdBy,80),urgent:x.urgent===true,dueTime:/^\d\d:\d\d$/.test(str(x.dueTime,5))?str(x.dueTime,5):""};});
     render();
   },subError);
   db.collection("files").onSnapshot(snap=>{
@@ -1559,6 +1766,15 @@ async function enter(session){
       return{id:d.id,projectId:str(x.projectId,80),kind:x.kind==="Punch"?"Punch":"Part",name:str(x.name,80)||"Part",ops:ops,at:+x.at||0};
     });
     render();
+  },()=>{});
+  db.collection("notices").onSnapshot(snap=>{
+    notices=snap.docs.map(d=>{
+      const x=d.data()||{},reads={};
+      for(const k of Object.keys(x))if(k.indexOf("read_")===0&&x[k])reads[k.slice(5)]=+x[k]||1;
+      return{id:d.id,text:str(x.text,300)||"Notification",toAll:x.toAll===true,toPanel:str(x.toPanel,40),toPerson:str(x.toPerson,80),voice:str(x.voice,300),at:+x.at||0,reads:reads};
+    });
+    gotNotes=true;render();
+    ensureUrls(notices.filter(n=>n.voice).map(n=>({path:n.voice}))).then(render);
   },()=>{});
   db.collection("tasks").onSnapshot(snap=>{
     tasks=snap.docs.map(d=>{const x=d.data()||{};return{id:d.id,text:str(x.text,300)||"Task",toPanel:str(x.toPanel,40),toPerson:str(x.toPerson,80),

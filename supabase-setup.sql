@@ -89,7 +89,7 @@ create table if not exists public.items (
 );
 alter table public.items drop constraint if exists items_coll_check;
 alter table public.items add constraint items_coll_check
-  check (coll in ('projects', 'parts', 'jobwork', 'files', 'productphotos', 'settings', 'tasks'));
+  check (coll in ('projects', 'parts', 'jobwork', 'files', 'productphotos', 'settings', 'tasks', 'notices'));
 create index if not exists items_coll_idx on public.items (coll);
 alter table public.items enable row level security;
 
@@ -98,9 +98,9 @@ create policy "items read" on public.items for select to authenticated
   using (public.is_member());
 
 drop policy if exists "items add" on public.items;
--- Only an admin changes the dashboard settings and adds (assigns) tasks.
+-- Only an admin changes the dashboard settings, assigns tasks and sends notifications.
 create policy "items add" on public.items for insert to authenticated
-  with check (public.is_member() and (coll not in ('settings', 'tasks') or public.is_admin()));
+  with check (public.is_member() and (coll not in ('settings', 'tasks', 'notices') or public.is_admin()));
 
 drop policy if exists "items change" on public.items;
 create policy "items change" on public.items for update to authenticated
