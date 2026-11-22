@@ -54,7 +54,7 @@ textarea{resize:vertical;min-height:84px}
 .btn.small{padding:5px 10px;font-size:14px}
 .btn:disabled{opacity:.55;cursor:default}
 
-.rail{display:flex;gap:8px;overflow-x:auto;padding:18px 0 14px;margin:0}
+.rail{display:flex;flex-wrap:wrap;gap:8px;padding:18px 0 14px;margin:0}
 .chip{border:1px solid var(--line);background:transparent;border-radius:999px;padding:6px 13px;cursor:pointer;white-space:nowrap;font-weight:500;display:flex;gap:8px;align-items:baseline}
 .chip b{font:600 15px var(--cond);color:var(--muted)}
 .chip[aria-pressed="true"]{background:var(--ink);border-color:var(--ink);color:var(--bg)}
@@ -142,6 +142,17 @@ textarea{resize:vertical;min-height:84px}
 .seglabel{font:500 12px/1.2 var(--cond);color:var(--muted);text-align:center;overflow:hidden;text-overflow:ellipsis}
 .seg.cur .seglabel{color:var(--ink);font-weight:600}
 .stagenow{display:none;font-weight:600;margin:0 0 6px}
+.track.big .segs{flex-wrap:wrap;gap:6px}
+.track.big .seg{flex:0 0 auto;display:block;height:auto;padding:5px 11px;border:1px solid var(--line);border-radius:999px}
+.track.big .seg::before{display:none}
+.track.big .seglabel{font:500 13.5px/1.2 var(--font);color:var(--muted);overflow:visible}
+.track.big .seg.on{background:var(--blue-soft);border-color:var(--blue-soft)}
+.track.big .seg.on .seglabel{color:var(--ink)}
+.track.big .seg.cur{background:var(--blue);border-color:var(--blue)}
+.track.big .seg.cur .seglabel{color:var(--on-blue);font-weight:600}
+.track.big.done .seg.on{background:var(--green);border-color:var(--green)}
+.track.big.done .seg.on .seglabel{color:var(--bg)}
+.track.big button.seg:hover{border-color:var(--blue)}
 .tabs{display:flex;flex-wrap:wrap;gap:8px 10px;align-items:center;margin:16px 0 0}
 .tabname{font:600 21px/1.2 var(--cond);margin-right:auto}
 .tab{border:1px solid var(--line);background:var(--raised);border-radius:6px;padding:9px 16px;font-weight:600;cursor:pointer}
@@ -253,8 +264,6 @@ label input,label select,label textarea{margin-top:4px;font-weight:400;font-size
   .prog{display:flex;overflow-x:auto;padding-bottom:4px}
   .prog>*{flex:0 0 190px}
   .tab{flex:1}
-  .stagenow{display:block}
-  .track.big .seglabel{display:none}
   .group{flex-wrap:wrap}
   .gtoggle{flex:1 1 150px}
   .tools select{flex:1 1 100%}
@@ -462,12 +471,12 @@ label input,label select,label textarea{margin-top:4px;font-weight:400;font-size
 <script>
 (function(){
 "use strict";
-const BASE_STAGES=["Enquiry","Design","Purchase","Shaping","Grinding","Machining","Fitting","Trial","Dispatched"];
+const BASE_STAGES=["Enquiry","Design","Purchase","Shaping","Grinding","Machining","Inward","Fitting","Trial","Dispatched"];
 let STAGES=BASE_STAGES.slice(),DONE=STAGES.length-1;
 const TYPES={png:"image/png",jpg:"image/jpeg",jpeg:"image/jpeg",gif:"image/gif",webp:"image/webp",svg:"image/svg+xml",mp4:"video/mp4",webm:"video/webm",pdf:"application/pdf",csv:"text/csv",md:"text/markdown",json:"application/json",txt:"text/plain"};
 const MAX=50*1024*1024,BUCKET="mould-files";
 const JOB_STATUS=["To send","At vendor","Received"];
-const BASE_OPS=["Material purchase","Shaping","Grinding","EDM design","EDM","Wire cut","Order","VMC","Turning","Milling","Drilling","Heat treatment","Polishing","Fitting"];
+const BASE_OPS=["Material purchase","Shaping","Grinding","EDM design","EDM","Wire cut","Inward","Order","VMC","Turning","Milling","Drilling","Heat treatment","Polishing","Fitting"];
 let OPS=BASE_OPS.slice();
 const OP_SAY={none:"not needed. Tap to mark it to do",pending:"to do. Tap to mark it done",done:"done. Tap to remove it"};
 const OP_NEXT={none:"pending",pending:"done",done:"none"};
@@ -661,8 +670,8 @@ function visible(){
   });
 }
 function chip(key,label,n,warn){
-  return h("button",{type:"button",class:"chip"+(warn?" warn":""),"aria-pressed":filter===key?"true":"false",
-    onclick:()=>{filter=key;render();}},label,h("b",{text:String(n)}));
+  return h("button",{type:"button",class:"chip"+(warn?" warn":""),"aria-pressed":(filter===key&&overview())?"true":"false",
+    onclick:()=>{filter=key;if(!isAdmin()&&hasPanel())empTab="all";render();}},label,h("b",{text:String(n)}));
 }
 function render(){
   if(!identReady()){
@@ -680,15 +689,15 @@ function render(){
     $("tabWork").setAttribute("aria-pressed",ov?"false":"true");$("tabAll").setAttribute("aria-pressed",ov?"true":"false");
   }
   $("addBtn").hidden=!(db&&canLead());
-  $("rail").hidden=!ov;
+  $("rail").hidden=!(ov||tabs);
   $("setBtn").hidden=!(db&&canSet()&&view==="admin");
   renderAdminBox();
-  if(!ov){renderPanel();if(openId)renderDetail();return;}
   const counts={},oj=openJobs(),pw=pendingOps(),jw=projects.filter(p=>oj[p.id]).length;let late=0;
   for(const p of projects){const s=STAGES[si(p)];counts[s]=(counts[s]||0)+1;if(isOverdue(p))late++;}
   $("rail").replaceChildren(chip("all","All",projects.length),...STAGES.map(s=>chip(s,s,counts[s]||0)),
     (jw||filter==="jobwork")?chip("jobwork","Job work pending",jw):"",
     (late||filter==="overdue")?chip("overdue","Overdue",late,true):"");
+  if(!ov){renderPanel();if(openId)renderDetail();return;}
   const list=$("list"),empty=$("empty");
   if(!gotProjects){list.hidden=true;empty.hidden=false;return;}
   const rows=visible(),fc=fileCounts();
@@ -858,7 +867,7 @@ function renderPanel(){
             h("span",{class:"job",text:pt.kind}),h("span",{class:"part",text:pt.name}),
             h("span",{class:"cust",text:[p.product,p.part].filter(Boolean).join(", ")})),
           h("span",{class:"due "+d.cls,text:d.text}),
-          h("span",{class:"fcount",text:""}),
+          h("span",{class:"fcount",text:STAGES[si(p)]}),
           canOp(op)?h("button",{class:"btn small primary",type:"button","aria-label":"Mark "+op+" done for "+pt.name,
             onclick:async e=>{e.stopPropagation();await setOp(pt,op,"done");toast(op+" done for "+pt.name);}},"Mark done"):"");
       });
@@ -1162,6 +1171,8 @@ function applySettings(x){
   cfg={shop:str(x.shop,60),extra:[...new Set(extra)],showDone:x.showDone!==false,showPhotos:x.showPhotos!==false,
     showCust:x.showCust!==false,startClosed:x.startClosed===true,soon:Math.min(60,Math.max(1,Math.round(+x.soon)||7))};
   const st=[...new Set((Array.isArray(x.stages)?x.stages:[]).map(cleanOp).filter(Boolean))].slice(0,15);
+  // Stage lists saved before the Inward stage existed get it after Machining, until the admin saves the list again.
+  if(st.length>=2&&!x.v2&&!st.includes("Inward")&&st.includes("Machining"))st.splice(st.indexOf("Machining")+1,0,"Inward");
   STAGES=st.length>=2?st:BASE_STAGES.slice();DONE=STAGES.length-1;
   if(!["all","overdue","jobwork"].includes(filter)&&!STAGES.includes(filter))filter="all";
   OPS=BASE_OPS.concat(cfg.extra);VIEWS=buildViews();
@@ -1181,6 +1192,7 @@ async function saveSettings(e){
     showCust:$("s_cust").checked,startClosed:$("s_closed").checked,at:Date.now()};
   data.stages=[...new Set($("s_stages").value.split(",").map(cleanOp).filter(Boolean))].slice(0,15);
   data.follow=$("s_follow").value.split(",").map(cleanOp).filter(Boolean).slice(0,10);
+  data.v2=true;
   if(data.stages.length<2){toast("Keep at least 2 process stages.");return;}
   const btn=$("setSave"),ref=db.doc("settings/"+SET_ID);btn.disabled=true;
   try{
