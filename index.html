@@ -142,6 +142,23 @@ textarea{resize:vertical;min-height:84px}
 .seglabel{font:500 12px/1.2 var(--cond);color:var(--muted);text-align:center;overflow:hidden;text-overflow:ellipsis}
 .seg.cur .seglabel{color:var(--ink);font-weight:600}
 .stagenow{display:none;font-weight:600;margin:0 0 6px}
+.pbar{height:8px;border-radius:4px;background:var(--seg);overflow:hidden;min-width:50px}
+.pbar i{display:block;height:100%;background:var(--green);border-radius:4px}
+.pline{display:flex;align-items:center;gap:10px;font-size:14.5px;color:var(--muted);margin:10px 0 0}
+.pline .pbar{flex:1}
+.pline b{color:var(--ink);font-weight:600}
+.group .pline{flex:1 1 260px;margin:0}
+.empty .pline{max-width:420px;margin:0 auto}
+.rowpct{display:flex;align-items:center;gap:6px;justify-content:flex-end;color:var(--ink);font-weight:600}
+.rowpct{white-space:nowrap}
+.rowpct .pbar{width:40px;min-width:0;flex:none}
+.prog{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:8px 12px;margin:0 0 14px}
+.prog>*{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:5px 10px;align-items:baseline;text-align:left;background:var(--surface);border:1px solid var(--line);border-radius:8px;padding:9px 12px}
+.prog button{cursor:pointer}
+.prog button:hover{border-color:var(--muted)}
+.prog .pbar{grid-column:1/-1}
+.prog .nm{font-weight:600}
+.prog .ct{color:var(--muted);font-size:14px}
 
 .empty{padding:56px 20px;text-align:center;color:var(--muted)}
 .empty p{margin:0 0 14px;font-size:17px}
@@ -609,7 +626,7 @@ function render(){
   }else{
     empty.hidden=true;list.hidden=false;
     const rowEl=(p,sub)=>{
-      const d=dueInfo(p),n=fc[p.id]||0,par=p.parentId?projects.find(x=>x.id===p.parentId):null;
+      const ws=stat(parts.filter(x=>x.projectId===p.id)),d=dueInfo(p),n=fc[p.id]||0,par=p.parentId?projects.find(x=>x.id===p.parentId):null;
       return h("li",{class:"row"+(sub?" sub":""),onclick:()=>openDetail(p.id)},
         h("button",{class:"open",type:"button",onclick:e=>{e.stopPropagation();openDetail(p.id);}},
           h("span",{class:"job",text:p.jobNo}),
@@ -617,7 +634,7 @@ function render(){
           h("span",{class:"cust",text:par?"Sub mould of "+(par.part||"mould"):(p.madeFor==="Own"?"Own purpose":(cfg.showCust?p.customer:""))})),
         track(p,false),
         h("span",{class:"due "+d.cls,text:d.text}),
-        h("span",{class:"fcount"},n===1?"1 file":n+" files",pw[p.id]?h("b",{text:pw[p.id]+" part work pending"}):"",oj[p.id]?h("b",{text:oj[p.id]+" job work pending"}):""));
+        h("span",{class:"fcount"},ws.total?h("span",{class:"rowpct"},pbar(ws.pct),ws.pct+"% done"):"",n===1?"1 file":n+" files",pw[p.id]?h("b",{text:pw[p.id]+" part work pending"}):"",oj[p.id]?h("b",{text:oj[p.id]+" job work pending"}):""));
     };
     const groups=new Map();
     for(const p of rows){const k=p.product;if(!groups.has(k))groups.set(k,[]);groups.get(k).push(p);}
@@ -717,9 +734,14 @@ function renderAdminBox(){
   if(view!=="admin"||!gotProjects){box.hidden=true;return;}
   const cnt={},kids=[];
   for(const pt of parts)for(const k of Object.keys(pt.ops))if(pt.ops[k]==="pending")cnt[k]=(cnt[k]||0)+1;
-  const pend=VIEWS.filter(v=>v.key.indexOf("op:")===0&&cnt[v.key.slice(3)]);
-  if(pend.length)kids.push(h("div",{class:"rail",style:"padding:0 0 14px"},h("span",{class:"raillabel",text:"Pending work"}),
-    pend.map(v=>h("button",{class:"chip",type:"button","aria-label":"Open "+v.label,onclick:()=>goView(v.key)},v.key.slice(3),h("b",{text:String(cnt[v.key.slice(3)])})))));
+  const prog=VIEWS.filter(v=>v.key.indexOf("op:")===0).map(v=>({v:v,s:stat(parts,v.key.slice(3))})).filter(x=>x.s.total);
+  if(prog.length){
+    const all=stat(parts);
+    kids.push(h("div",{class:"prog"},
+      h("div",null,h("span",{class:"nm",text:"All work"}),h("span",{class:"ct",text:all.done+" of "+all.total+" done, "+all.pct+"%"}),pbar(all.pct)),
+      prog.map(x=>h("button",{type:"button","aria-label":"Open "+x.v.label,onclick:()=>goView(x.v.key)},
+        h("span",{class:"nm",text:x.v.key.slice(3)}),h("span",{class:"ct",text:x.s.done+" of "+x.s.total+" done, "+x.s.pct+"%"}),pbar(x.s.pct)))));
+  }
   if(isAdmin())kids.push(teamBlock());
   box.hidden=!kids.length;box.replaceChildren(...kids);
 }
@@ -732,9 +754,10 @@ function renderPanel(){
   for(const p of projects)byId[p.id]=p;
   const due=(a,b)=>{const x=a.due||"9999",y=b.due||"9999";return x<y?-1:x>y?1:0;};
   const label=(VIEWS.find(v=>v.key===view)||{label:view.replace(/^op:/,"")+" panel"}).label;
-  let rows=[],none="",unit="";
+  let rows=[],none="",unit="",ps=null,pword="";
   if(view==="designer"){
     none="No moulds are in the Design stage.";unit="in design";
+    {const di=STAGES.indexOf("Design"),al=di<0?[]:projects.filter(p=>si(p)>=di),dn=al.filter(p=>si(p)>di).length;ps={done:dn,total:al.length,pct:al.length?Math.round(dn*100/al.length):0};pword="moulds designed";}
     rows=projects.filter(p=>STAGES[si(p)]==="Design"&&(!q||(p.product+" "+p.part+" "+p.jobNo+" "+p.customer).toLowerCase().includes(q))).sort(due).map(p=>{
       const d=dueInfo(p),n=fc[p.id]||0;
       return h("li",{class:"row prow",onclick:()=>openDetail(p.id)},
@@ -748,6 +771,7 @@ function renderPanel(){
   }else{
     const op=view.slice(3);
     none="No pending "+op+" work.";unit="pending";
+    ps=stat(parts.filter(pt=>byId[pt.projectId]),op);pword=op+" work done";
     rows=parts.filter(pt=>pt.ops[op]==="pending"&&byId[pt.projectId]).map(pt=>({pt:pt,p:byId[pt.projectId]}))
       .filter(x=>!q||(x.pt.name+" "+x.pt.kind+" "+x.p.product+" "+x.p.part+" "+x.p.jobNo).toLowerCase().includes(q))
       .sort((a,b)=>due(a.p,b.p)).map(x=>{
@@ -762,9 +786,9 @@ function renderPanel(){
             onclick:async e=>{e.stopPropagation();await setOp(pt,op,"done");toast(op+" done for "+pt.name);}},"Mark done"):"");
       });
   }
-  if(!rows.length){list.hidden=true;empty.hidden=false;empty.replaceChildren(h("p",{text:q?"Nothing matches this search.":none}));return;}
+  if(!rows.length){list.hidden=true;empty.hidden=false;empty.replaceChildren(h("p",{text:q?"Nothing matches this search.":none}),(ps&&ps.total)?pline(ps,pword):"");return;}
   empty.hidden=true;list.hidden=false;
-  list.replaceChildren(h("li",{class:"group"},h("span",{class:"gname",text:label}),h("span",{class:"gcount",text:rows.length+" "+unit})),...rows);
+  list.replaceChildren(h("li",{class:"group"},h("span",{class:"gname",text:label}),h("span",{class:"gcount",text:rows.length+" "+unit}),(ps&&ps.total)?pline(ps,pword):""),...rows);
 }
 
 /* ---------- detail drawer ---------- */
@@ -823,6 +847,7 @@ function renderDetail(){
         h("button",{class:"flink",type:"button",text:c.part||"Untitled mould",onclick:()=>openDetail(c.id)}),
         h("span",{class:"fmeta",text:STAGES[si(c)]})))):h("p",{class:"muted",text:"No sub moulds in this mould."})]:[],
     h("h3",{text:"Parts and punches ("+pp.length+")"}),
+    stat(pp).total?pline(stat(pp),"work done"):"",
     canWrite?h("button",{class:"btn",type:"button",onclick:()=>openPart(p.id)},"Add part or punch"):"",
     pp.length?[canWrite?h("p",{class:"hint",text:"Tap a work once to mark it to do, again when it is done, and a third time to remove it."}):"",
       h("ul",{class:"parts"},pp.map(partBlock))]:h("p",{class:"muted",text:"No parts or punches added for this mould yet."}),
@@ -850,6 +875,15 @@ function openPreview(f,url,isVid){
   const el=isVid?h("video",{src:url,controls:true,playsinline:true}):h("img",{src:url,alt:f.name});
   $("pvBody").replaceChildren(el);$("preview").showModal();
 }
+
+/* ---------- work progress ---------- */
+function pbar(pct){const i=document.createElement("i");i.style.width=pct+"%";return h("div",{class:"pbar",role:"progressbar","aria-valuenow":pct,"aria-valuemin":0,"aria-valuemax":100},i);}
+function stat(list,op){
+  let d=0,t=0;
+  for(const pt of list)for(const k of Object.keys(pt.ops)){if(op&&k!==op)continue;t++;if(pt.ops[k]==="done")d++;}
+  return{done:d,total:t,pct:t?Math.round(d*100/t):0};
+}
+function pline(s,word){return h("div",{class:"pline"},pbar(s.pct),h("b",{text:s.pct+"%"}),h("span",{text:s.done+" of "+s.total+" "+word}));}
 
 /* ---------- dashboard settings ---------- */
 const SET_ID="00000000-0000-4000-8000-000000000001";
