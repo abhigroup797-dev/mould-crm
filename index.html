@@ -716,7 +716,7 @@ function visible(){
 }
 function chip(key,label,n,warn){
   return h("button",{type:"button",class:"chip"+(warn?" warn":""),"aria-pressed":(filter===key&&overview())?"true":"false",
-    onclick:()=>{filter=key;if(!isAdmin()&&hasPanel())empTab="all";render();}},label,h("b",{text:String(n)}));
+    onclick:()=>{filter=key;empTab="all";render();}},label,h("b",{text:String(n)}));
 }
 function render(){
   if(!identReady()){
@@ -725,10 +725,10 @@ function render(){
     return;
   }
   view=effView();fillViews();watchNotes();paintTitle();
-  const boss=isAdmin(),ov=overview(),tabs=!boss&&hasPanel();
+  const boss=isAdmin(),ov=overview(),tabs=boss?view!=="admin":hasPanel();
   $("viewSel").hidden=!boss;$("tabs").hidden=!tabs;
   if(tabs){
-    const mine=tasks.filter(t=>!t.done&&mineTask(t,myKeys(),myRole())).length+queueCount(view)+myUnread().length;
+    const mine=boss?queueCount(view):tasks.filter(t=>!t.done&&mineTask(t,myKeys(),myRole())).length+queueCount(view)+myUnread().length;
     $("tabName").textContent=roleLabel(view);
     $("tabWork").textContent="My work ("+mine+")";
     $("tabWork").setAttribute("aria-pressed",ov?"false":"true");$("tabAll").setAttribute("aria-pressed",ov?"true":"false");
@@ -798,7 +798,7 @@ function render(){
 function myRole(){const p=profiles.find(x=>x.id===myId);return(p&&p.role)||"";}
 function isAdmin(){return myRole()==="admin";}
 function locked(){return myRole()!=="admin";}
-function goView(k){userPicked=true;applyView(k);try{location.hash=VIEWS.find(v=>v.key===wantView).hash;}catch(e){}render();}
+function goView(k){userPicked=true;empTab="all";applyView(k);try{location.hash=VIEWS.find(v=>v.key===wantView).hash;}catch(e){}render();}
 async function loadProfiles(){
   const r=await sb.from("profiles").select("id,name,email,role");
   if(r.error)return false;
@@ -1330,7 +1330,7 @@ function canLead(){return canWrite&&(isAdmin()||isDesigner());}
 function canPlan(){return canWrite&&(isAdmin()||isDesigner());}
 function canOp(k){return canWrite&&(isAdmin()||isDesigner()||myOp()===k);}
 function canAdd(){return canWrite&&(isAdmin()||hasPanel());}
-function overview(){return isAdmin()?view==="admin":(empTab==="all"||!hasPanel());}
+function overview(){return isAdmin()?(view==="admin"||empTab==="all"):(empTab==="all"||!hasPanel());}
 function nextOp(k,st){
   if(!canWrite)return "";
   if(isAdmin()||isDesigner())return OP_NEXT[st];
@@ -1688,7 +1688,7 @@ function applyView(k){
 function viewFromHash(){const v=VIEWS.find(x=>x.hash===location.hash.slice(1));return v?v.key:null;}
 (function(){let saved=null;try{saved=localStorage.getItem("mouldPanel");}catch(e){}userPicked=!!viewFromHash();applyView(viewFromHash()||saved||"admin");})();
 $("viewSel").addEventListener("change",e=>{
-  userPicked=true;applyView(e.target.value);
+  userPicked=true;empTab="all";applyView(e.target.value);
   try{location.hash=VIEWS.find(v=>v.key===wantView).hash;}catch(err){}
   render();
 });
