@@ -4,6 +4,14 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Mould CRM</title>
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" media="(prefers-color-scheme: light)" content="#E9EDF0">
+<meta name="theme-color" media="(prefers-color-scheme: dark)" content="#12181E">
+<link rel="icon" type="image/png" sizes="192x192" href="icon-192.png">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Mould CRM">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Barlow:wght@400;500;600&family=Barlow+Semi+Condensed:wght@500;600&display=swap" rel="stylesheet">
@@ -265,6 +273,17 @@ label input,label select,label textarea{margin-top:4px;font-weight:400;font-size
 .gate{max-width:400px;margin:9vh auto 0;padding:0 20px 40px}
 .gate form{display:grid;gap:12px;margin:18px 0;background:var(--surface);border:1px solid var(--line);border-radius:8px;padding:18px}
 .foot{display:flex;flex-wrap:wrap;gap:8px 14px;align-items:center;margin:22px 0 0;color:var(--muted);font-size:14.5px}
+.appline{display:flex;flex-wrap:wrap;gap:8px 10px;align-items:center;margin-top:18px}
+.appbar{display:flex;flex-wrap:wrap;gap:8px 12px;align-items:center;background:var(--surface);border:1px solid var(--line);border-radius:8px;padding:8px 12px;margin:0 0 14px;font-size:14.5px}
+.appbar img{border-radius:7px;flex:none}
+.appbar span{flex:1 1 110px;font-weight:500}
+.appbar .x{font-size:20px;line-height:1;padding:4px 10px}
+#appSteps h3{font:600 17px/1.2 var(--cond);margin:14px 0 4px}
+#appSteps h3:first-child{margin-top:0}
+.steps{margin:0;padding-left:22px}
+.steps li{margin:5px 0}
+.upd{position:fixed;left:0;right:0;margin:0 auto;width:min(460px,calc(100% - 24px));bottom:calc(14px + env(safe-area-inset-bottom,0px));z-index:19;display:flex;gap:12px;align-items:center;justify-content:space-between;background:var(--raised);color:var(--ink);border:1px solid var(--blue);border-radius:8px;padding:10px 12px 10px 14px;font-weight:500;box-shadow:0 6px 24px rgba(10,16,22,.25)}
+.upd:not([hidden])~#toast{bottom:calc(100px + env(safe-area-inset-bottom,0px))}
 
 @media (max-width:820px){
   .wrap{padding:16px 14px 80px}
@@ -309,8 +328,15 @@ label input,label select,label textarea{margin-top:4px;font-weight:400;font-size
     <button class="btn primary" type="submit" id="g_btn">Log in</button>
   </form>
   <button class="btn" type="button" id="g_out" hidden>Log out</button>
+  <p class="hint appline" id="g_app" hidden><button class="btn small" type="button" id="g_install">Install app</button><span>Puts Mould CRM on your home screen.</span></p>
 </section>
 <div class="wrap" id="app" hidden>
+  <div class="appbar" id="appBar" hidden>
+    <img src="icon-192.png" alt="" width="32" height="32">
+    <span>Put Mould CRM on your home screen.</span>
+    <button class="btn small primary" type="button" id="a_install">Install app</button>
+    <button class="btn small x" type="button" id="a_later" aria-label="Not now" title="Not now">×</button>
+  </div>
   <header class="top">
     <h1 id="title">Mould projects</h1>
     <div class="tools">
@@ -504,6 +530,14 @@ label input,label select,label textarea{margin-top:4px;font-weight:400;font-size
 
 <dialog id="preview"><button class="btn small" type="button" id="pvClose">Close</button><div id="pvBody"></div></dialog>
 <input type="file" id="photoInput" accept="image/png,image/jpeg,image/webp" hidden>
+<dialog id="appDlg" class="modal" style="width:min(440px,calc(100% - 24px))">
+  <div class="inner">
+    <div class="dhead"><h2>Put Mould CRM on your home screen</h2></div>
+    <div id="appSteps"></div>
+    <div class="formfoot"><button class="btn primary" type="button" id="appClose">OK</button></div>
+  </div>
+</dialog>
+<div class="upd" id="upd" role="status" hidden><span>A new version is ready.</span><button class="btn small primary" type="button" id="updBtn">Update</button></div>
 <div id="toast" role="status" aria-live="polite" hidden></div>
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
@@ -1739,6 +1773,67 @@ $("detail").addEventListener("close",()=>{openId=null;});
 ["detail","formDlg","jobDlg","partDlg","opDlg","empDlg","setDlg","taskDlg","noteDlg","pwDlg","preview"].forEach(id=>{const d=$(id);d.addEventListener("click",e=>{if(e.target===d)d.close();});});
 
 /* ---------- login and start ---------- */
+/* ---------- phone shortcut: the site installs as an app ---------- */
+// Deploy stamp: UTC year, month, day, hour, minute. Raise it at every upload.
+// An open page that finds a higher number on the site offers "Update".
+const BUILD=202611231253;
+let installEvt=null;
+function isStandalone(){try{return window.matchMedia("(display-mode: standalone)").matches||navigator.standalone===true;}catch(e){return false;}}
+function barHidden(){try{return localStorage.getItem("mouldAppBar")==="hide";}catch(e){return false;}}
+function paintInstall(){
+  const app=isStandalone();
+  let phone=false;try{phone=window.matchMedia("(pointer: coarse)").matches;}catch(e){}
+  $("g_app").hidden=app;
+  const f=$("f_install");if(f)f.hidden=app;
+  $("appBar").hidden=app||!phone||barHidden();
+}
+function hideBar(){try{localStorage.setItem("mouldAppBar","hide");}catch(e){}$("appBar").hidden=true;}
+// Shown when the browser has no install box of its own to open.
+function installHelp(){
+  const ua=navigator.userAgent||"",android=/android/i.test(ua);
+  const ios=/iphone|ipad|ipod/i.test(ua)||(navigator.platform==="MacIntel"&&navigator.maxTouchPoints>1);
+  const sec=(title,steps)=>[h("h3",{text:title}),h("ol",{class:"steps"},steps.map(s=>h("li",{text:s})))];
+  const A=sec("On an Android phone, in Chrome",["Tap the three dots at the top right.",
+    "Tap “Add to Home screen”. On some phones it says “Install app”.",
+    "Tap “Install”. The Mould CRM icon is now on your home screen."]);
+  const I=sec("On an iPhone or iPad, in Safari",["Tap the Share button, the square with an arrow.",
+    "Scroll down and tap “Add to Home Screen”.",
+    "Tap “Add”. The Mould CRM icon is now on your home screen."]);
+  const C=sec("On a computer, in Chrome or Edge",["Open the browser menu, the three dots at the top right.",
+    "Choose “Install Mould CRM”. In Chrome it can be under “Cast, save and share”, in Edge under “Apps”.",
+    "Click “Install”. Mould CRM opens in its own window."]);
+  $("appSteps").replaceChildren(...(android?A:ios?I:[...A,...I,...C]));
+  $("appDlg").showModal();
+}
+async function installApp(){
+  if(installEvt){
+    const e=installEvt;installEvt=null;
+    try{await e.prompt();return;}catch(x){}
+  }
+  installHelp();
+}
+window.addEventListener("beforeinstallprompt",e=>{e.preventDefault();installEvt=e;document.documentElement.setAttribute("data-install","ready");});
+window.addEventListener("appinstalled",()=>{installEvt=null;hideBar();toast("Mould CRM is now on your home screen.");});
+
+/* ---------- tell an open page when a newer version is on the site ---------- */
+let verAt=0,verTag="",verNew=false;
+async function checkVersion(){
+  if(verNew||document.hidden||!/^https?:$/.test(location.protocol)||Date.now()-verAt<10*60*1000)return;
+  verAt=Date.now();
+  try{
+    const url=location.pathname+"?build="+verAt;
+    const hd=await fetch(url,{method:"HEAD",cache:"no-store"});
+    if(!hd.ok)return;
+    const tag=hd.headers.get("etag")||hd.headers.get("last-modified")||"";
+    if(tag&&tag===verTag)return;
+    const r=await fetch(url,{cache:"no-store"});
+    if(!r.ok)return;
+    const m=/const BUILD=(\d{12});/.exec(await r.text());
+    verTag=tag;
+    if(m&&+m[1]>BUILD){verNew=true;$("upd").hidden=false;}
+  }catch(e){}
+}
+
 function gate(msg,form,out){
   $("app").hidden=true;$("gate").hidden=false;
   $("gateMsg").textContent=msg;$("loginForm").hidden=!form;$("g_out").hidden=!out;
@@ -1784,7 +1879,8 @@ async function enter(session){
   const me=profiles.find(x=>x.id===myId);
   $("foot").replaceChildren(h("span",{text:"Logged in as "+(me.name||me.email)}),
     h("button",{class:"btn small",type:"button",onclick:()=>openPw(null)},"Change my password"),
-    h("button",{class:"btn small",type:"button",onclick:logout},"Log out"));
+    h("button",{class:"btn small",type:"button",onclick:logout},"Log out"),
+    h("button",{class:"btn small",type:"button",id:"f_install",hidden:isStandalone(),onclick:installApp},"Install app"));
   $("gate").hidden=true;$("app").hidden=false;
   render();
   db.collection("projects").onSnapshot(snap=>{
@@ -1860,6 +1956,16 @@ async function start(){
 }
 $("loginForm").addEventListener("submit",submitLogin);
 $("g_out").addEventListener("click",logout);
+$("g_install").addEventListener("click",installApp);
+$("a_install").addEventListener("click",installApp);
+$("a_later").addEventListener("click",hideBar);
+$("appClose").addEventListener("click",()=>$("appDlg").close());
+$("updBtn").addEventListener("click",()=>location.reload());
+try{window.matchMedia("(display-mode: standalone)").addEventListener("change",paintInstall);}catch(e){}
+paintInstall();
+setTimeout(checkVersion,30000);
+setInterval(checkVersion,30*60*1000);
+document.addEventListener("visibilitychange",checkVersion);
 start();
 })();
 </script>

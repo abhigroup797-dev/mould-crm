@@ -16,7 +16,8 @@ What it does:
 - Notifications: the admin sends a message or voice note to an employee, a panel or everyone, and sees who has read it
 - Dashboard settings for the admin: shop name, process stages, extra work options, mould types and what the dashboard shows
 - Admin panel, Designer panel, VMC operator panel and a panel for every other work
-- Each employee logs in with an email and password and gets only their own panel: their own work, their tasks and a view of all moulds
+- Each employee logs in with an email and password and gets only their own panel: the dashboard with all moulds, their own work and their tasks
+- Works as an app on a phone: **Install app** puts a Mould CRM icon on the home screen, and an open page offers **Update** when a newer version is on the site
 - Roles: the admin does everything, a designer adds and updates moulds, parts, work and stages and follows up the processes set in Settings (Shaping and Grinding to start with), an operator marks only their own process done
 
 ## Files
@@ -25,6 +26,7 @@ What it does:
 |---|---|
 | `index.html` | The CRM website |
 | `config.js` | Your Supabase project URL and publishable key |
+| `manifest.json`, `icon-*.png`, `apple-touch-icon.png` | App name and icon for the phone home screen |
 | `supabase-setup.sql` | Creates the database, login rules and file storage |
 
 ## Setup (one time)
@@ -66,6 +68,7 @@ In the Admin panel open **Employees and panels**, click **Add employee**, and gi
 ## Good to know
 
 - **Free plan limits:** about 500 MB of data and 1 GB of files. A free Supabase project pauses if nobody uses it for 7 days; open the Supabase dashboard and click Restore to wake it.
-- **Phone shortcut:** open the site in Chrome, tap the three dots and choose **Add to Home screen**.
+- **Phone shortcut:** open the site on the phone and tap **Install app** (at the top of the dashboard, on the login page and at the bottom of the page). If the browser has no install box of its own, the button shows the steps: on Android, Chrome menu, **Add to Home screen**, **Install**; on an iPhone, Safari Share button, **Add to Home Screen**.
+- **New versions:** `index.html` has a line `const BUILD=...` with the upload date and time (UTC). Raise that number whenever you upload a changed `index.html`, and every open page will offer **Update**.
 - **Panel links:** add `#designer`, `#vmc`, `#edm`, `#edm-design` or `#wire-cut` to the end of the site link to open a panel directly (for the admin).
 - **Data is separate:** moulds entered in the earlier Claude version are not copied here. This site starts empty.
