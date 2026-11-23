@@ -322,8 +322,8 @@ label input,label select,label textarea{margin-top:4px;font-weight:400;font-size
   </header>
   <nav class="tabs" id="tabs" aria-label="Your panel" hidden>
     <span class="tabname" id="tabName"></span>
-    <button type="button" class="tab" id="tabWork" aria-pressed="true">My work</button>
-    <button type="button" class="tab" id="tabAll" aria-pressed="false">All moulds</button>
+    <button type="button" class="tab" id="tabAll" aria-pressed="true">Dashboard</button>
+    <button type="button" class="tab" id="tabWork" aria-pressed="false">My work</button>
   </nav>
   <section id="noteTop" hidden></section>
   <nav class="rail" id="rail" aria-label="Filter by stage"></nav>
@@ -538,7 +538,7 @@ const audioEls={};
 let cfg={shop:"",extra:[],types:BASE_TYPES.slice(),follow:["Shaping","Grinding"],showDone:true,showPhotos:true,showCust:true,startClosed:false,soon:7},cfgExists=false;
 let formParent=null,view="admin",roles={},people=[],isOwner=false,teamOpen=false,empPick=null,staff=[],claims={},asked=false,codes={},whoPick=null;
 const seen={};
-let wantView="admin",userPicked=false,identLate=false,empTab="work";
+let wantView="admin",userPicked=false,identLate=false,empTab="all";
 let jobs=[],jobPid=null,parts=[],partPid=null,opPartId=null;
 let projects=[],files=[],gotProjects=false,filter="all",query="",openId=null,editId=null;
 let uploading=false,upMsg="",upErr=false;
@@ -877,7 +877,7 @@ function renderAdminBox(){
       prog.map(x=>h(boss?"button":"div",boss?{type:"button","aria-label":"Open "+x.v.label,onclick:()=>goView(x.v.key)}:{class:"pb"},
         h("span",{class:"nm",text:x.v.key.slice(3)}),h("span",{class:"ct",text:x.s.done+" of "+x.s.total+" done, "+x.s.pct+"%"}),pbar(x.s.pct)))));
   }
-  if(boss||!ov){const tb=taskBlock();if(tb)kids.push(tb);}
+  {const tb=taskBlock();if(tb)kids.push(tb);}
   if(boss&&view==="admin")kids.push(sentBlock());
   if(!boss&&(!ov||!hasPanel())){const ob=oldNotesBlock();if(ob)kids.push(ob);}
   if(view==="admin"&&isAdmin())kids.push(teamBlock());
